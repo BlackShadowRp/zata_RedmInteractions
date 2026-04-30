@@ -14,6 +14,8 @@ ui_page "ui/index.html"
 client_scripts {
 	"@uiprompt/uiprompt.lua",
 	"common.lua",
+	"translations_scenarios.lua",
+	"translations_props.lua",
 	"config.lua",
 	"client.lua"
 }

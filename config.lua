@@ -1,7 +1,7 @@
 Config = {}
 
 -- Control to start/stop interactions. Comment this out to disable the control.
-Config.InteractControl = `INPUT_GAME_MENU_TAB_LEFT_SECONDARY` -- Z
+Config.InteractControl = `INPUT_GAME_MENU_DOWN` --`INPUT_GAME_MENU_TAB_LEFT_SECONDARY` -- Z
 
 -- Interaction picker menu controls
 Config.MenuUpControl = `INPUT_GAME_MENU_UP`
@@ -528,17 +528,14 @@ Config.Interactions = {
 		heading = 92.793,
 		effect = "clean"
 	},
+	-- kitty badewanne haus
 	{
-		isCompatible = IsPedHuman,
-		objects = {
-			"p_bath03x"
-		},
 		radius = 2.0,
 		animations = BathingAnimations,
-		x = -0.5,
-		y = 0.0,
-		z = 0.65,
-		heading = 270.0,
+		x = -1682.58,
+		y = -332.92,
+		z = 173.82,
+		heading = 118.0,
 		effect = "clean"
-	}
+	},
 }

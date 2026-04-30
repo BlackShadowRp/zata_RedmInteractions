@@ -5,7 +5,7 @@ local CurrentInteraction
 local CanStartInteraction = true
 local MaxRadius = 0.0
 
-local InteractPrompt = Uiprompt:new(Config.InteractControl, "Select Interaction", nil, false)
+local InteractPrompt = Uiprompt:new(Config.InteractControl, "Nutzen", nil, false)
 
 function DrawMarker(type, posX, posY, posZ, dirX, dirY, dirZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, red, green, blue, alpha, bobUpAndDown, faceCamera, p19, rotate, textureDict, textureName, drawOnEnts)
 	Citizen.InvokeNative(0x2A32FAA57B937173, type, posX, posY, posZ, dirX, dirY, dirZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, red, green, blue, alpha, bobUpAndDown, faceCamera, p19, rotate, textureDict, textureName, drawOnEnts)
@@ -127,11 +127,51 @@ function IsCompatible(t, ped)
 	return not t.isCompatible or t.isCompatible(ped)
 end
 
+function GetTranslatedLabel(translations, key, fallback)
+	if type(translations) ~= "table" then
+		return fallback
+	end
+
+	local translatedLabel = translations[key]
+
+	if type(translatedLabel) ~= "string" then
+		return fallback
+	end
+
+	translatedLabel = translatedLabel:match("^%s*(.-)%s*$")
+
+	if translatedLabel == "" then
+		return fallback
+	end
+
+	return translatedLabel
+end
+
+function GetScenarioLabel(scenarioName)
+	return GetTranslatedLabel(ScenarioTranslations, scenarioName, scenarioName)
+end
+
+function GetAnimationLabel(animation)
+	if not animation then
+		return nil
+	end
+
+	return GetTranslatedLabel(AnimationTranslations, animation.name, animation.label or animation.name)
+end
+
+function GetPropLabel(modelName)
+	return GetTranslatedLabel(PropTranslations, modelName, modelName)
+end
+
+function GetInteractionLabel(label)
+	return GetTranslatedLabel(InteractionLabelTranslations, label, label)
+end
+
 function SortInteractions(a, b)
 	if a.distance == b.distance then
 		if a.object == b.object then
-			local aLabel = a.scenario or a.animation.label
-			local bLabel = b.scenario or b.animation.label
+			local aLabel = a.scenarioLabel or a.scenario or a.animationLabel or a.animation.label
+			local bLabel = b.scenarioLabel or b.scenario or b.animationLabel or b.animation.label
 			return aLabel < bLabel
 		else
 			return a.object < b.object
@@ -153,10 +193,12 @@ function AddInteractions(availableInteractions, interaction, playerPed, playerCo
 					z = interaction.z,
 					heading = interaction.heading,
 					scenario = scenario.name,
+					scenarioLabel = GetScenarioLabel(scenario.name),
 					object = object,
 					modelName = modelName,
+					modelLabel = modelName and GetPropLabel(modelName) or nil,
 					distance = distance,
-					label = interaction.label,
+					label = interaction.label and GetInteractionLabel(interaction.label) or nil,
 					effect = interaction.effect
 				})
 			end
@@ -172,10 +214,12 @@ function AddInteractions(availableInteractions, interaction, playerPed, playerCo
 					z = interaction.z,
 					heading = interaction.heading,
 					animation = animation,
+					animationLabel = GetAnimationLabel(animation),
 					object = object,
 					modelName = modelName,
+					modelLabel = modelName and GetPropLabel(modelName) or nil,
 					distance = distance,
-					label = interaction.label,
+					label = interaction.label and GetInteractionLabel(interaction.label) or nil,
 					effect = interaction.effect
 				})
 			end

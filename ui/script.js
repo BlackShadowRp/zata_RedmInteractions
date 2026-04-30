@@ -95,31 +95,37 @@ function showInteractionPicker(data) {
 		div.className = 'interaction';
 
 		if (interaction.scenario) {
+			var scenarioLabel = interaction.scenarioLabel || interaction.scenario;
+			var modelLabel = interaction.modelLabel || interaction.modelName;
+
 			if (interaction.label) {
-				if (interaction.modelName) {
-					div.innerHTML = interaction.modelName + ': ' + interaction.scenario + ' (' + interaction.label + ')';
+				if (modelLabel) {
+					div.innerHTML = modelLabel + ': ' + scenarioLabel + ' (' + interaction.label + ')';
 				} else {
-					div.innerHTML = interaction.scenario + ' (' + interaction.label + ')';
+					div.innerHTML = scenarioLabel + ' (' + interaction.label + ')';
 				}
 			} else {
-				if (interaction.modelName) {
-					div.innerHTML = interaction.modelName + ': ' + interaction.scenario;
+				if (modelLabel) {
+					div.innerHTML = modelLabel + ': ' + scenarioLabel;
 				} else {
-					div.innerHTML = interaction.scenario;
+					div.innerHTML = scenarioLabel;
 				}
 			}
 		} else {
+			var animationLabel = interaction.animationLabel || interaction.animation.label;
+			var modelLabel = interaction.modelLabel || interaction.modelName;
+
 			if (interaction.label) {
-				if (interaction.modelName) {
-					div.innerHTML = interaction.modelName + ': ' + interaction.animation.label + ' (' + interaction.label + ')';
+				if (modelLabel) {
+					div.innerHTML = modelLabel + ': ' + animationLabel + ' (' + interaction.label + ')';
 				} else {
-					div.innerHTML = interaction.animation.label + ' (' + interaction.label + ')';
+					div.innerHTML = animationLabel + ' (' + interaction.label + ')';
 				}
 			} else {
-				if (interaction.modelName) {
-					div.innerHTML = interaction.modelName + ': ' + interaction.animation.label;
+				if (modelLabel) {
+					div.innerHTML = modelLabel + ': ' + animationLabel;
 				} else {
-					div.innerHTML = interaction.animation.label;
+					div.innerHTML = animationLabel;
 				}
 			}
 		}
@@ -149,7 +155,7 @@ function showInteractionPicker(data) {
 
 	var div = document.createElement('div');
 	div.className = 'interaction';
-	div.innerHTML = 'End Interaction';
+	div.innerHTML = 'Nutzung beenden';
 	div.setAttribute('data-cancel', '');
 	list.appendChild(div);
 

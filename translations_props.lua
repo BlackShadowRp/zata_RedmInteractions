@@ -13,6 +13,9 @@ PropTranslations["p_ambchair01x"] = "Stuhl"
 PropTranslations["p_ambchair02x"] = "Stuhl"
 PropTranslations["p_armchair01x"] = "Sessel"
 PropTranslations["p_barstool01x"] = "Barhocker"
+PropTranslations["p_bed01x"] = "Holzbett"
+PropTranslations["p_bed15brassx"] = "Messingbett"
+PropTranslations["p_bedking01x"] = "Grosses Bett"
 
 -- BEDS
 PropTranslations["p_bed03x"] = "Bett"

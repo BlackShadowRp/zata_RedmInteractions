@@ -269,6 +269,32 @@ Config.Interactions = {
 	},
 	{
 		objects = {
+			"p_bed01x",
+			"p_bed15brassx"
+		},
+		label = "left",
+		radius = 2.0,
+		scenarios = BedScenarios,
+		x = -0.38,
+		y = 0.0,
+		z = 0.8,
+		heading = 180.0
+	},
+	{
+		objects = {
+			"p_bed01x",
+			"p_bed15brassx"
+		},
+		label = "right",
+		radius = 2.0,
+		scenarios = BedScenarios,
+		x = 0.38,
+		y = 0.0,
+		z = 0.8,
+		heading = 180.0
+	},
+	{
+		objects = {
 			"p_bed20madex",
 			"p_cs_pro_bed_unmade",
 			"p_cs_bed20madex"
@@ -357,6 +383,20 @@ Config.Interactions = {
 		y = -0.2,
 		z = 0.8,
 		heading = 180.0
+	},
+	{
+		objects = {"p_bedking01x"},
+		label = "left",
+		radius = 2.0,
+		scenarios = BedScenarios,
+		x = -0.5, y = 0.5, z = 1.0, heading = 180.0
+	},
+	{
+		objects = {"p_bedking01x"},
+		label = "right",
+		radius = 2.0,
+		scenarios = BedScenarios,
+		x = 0.5, y = 0.5, z = 1.0, heading = 180.0
 	},
 	{
 		objects = {

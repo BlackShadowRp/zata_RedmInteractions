@@ -1,6 +1,47 @@
-# RedM interactions
+# zata_RedmInteractions
 
 Configurable interactions with objects or points on the map.
+
+## Herkunft und Dank an kibook
+
+Diese Resource basiert auf **[kibooks redm-interactions](https://github.com/kibook/redm-interactions)**,
+Originalstand `02374f5eeed2f7bc1dd1137d4fc810518bfab2b0`.
+**Vielen Dank an kibook für die Grundlage und das originale Interaktionssystem!**
+Die Umbenennung ist keine vollständige Eigenentwicklung.
+
+Aus dem Original übernommen:
+
+- Objektsuche, Entfernungs- und Modellprüfungen, relative Koordinaten und
+  Ausrichtung sowie die grundlegenden Szenario-/Animationsaufrufe in `client.lua`.
+- Die ursprüngliche Möbel-/Szenariokonfiguration als Grundlage der erweiterten Liste.
+- `common.lua` unverändert mit den gemeinsamen Kompatibilitätsprüfungen.
+- Der NUI-Auswahlpicker mit HTML-/JavaScript-Grundgerüst. CSS und Schrift sind
+  unverändert; eigene UI-Anpassungen betreffen Übersetzungen und die Callback-Adresse.
+- Das Manifest-Grundgerüst und die Integration von kibooks `redm-uiprompt`.
+
+Von BlackShadowRP ergänzt oder verändert:
+
+- Deutsche Szenario-, Objekt- und UI-Bezeichnungen sowie weitere Möbel und Betten.
+- Pfeil nach unten für die Auswahl und Sitzvariantenwechsel ohne vorheriges Aufstehen.
+- Zusätzlicher Pfeil-nach-oben-Prompt für sofortiges Aufstehen; Posewechsel erhalten
+  die ursprüngliche Rückkehrposition.
+- Abbrechen im Picker beendet auch native/externe Sitzaktionen, etwa über E,
+  sowie andere aktuelle Spieleranimationen sofort.
+- Lautloses Drehen auf gehaltenen Pfeiltasten mit einstellbarer Geschwindigkeit
+  und sanftem Anlauf, vollständig ohne Drehprompts.
+- Todes-, Mount-, Fahrzeug-, Bewegungs- und Aktionssperren sowie NUI-, Feather-
+  und VORP-Menüintegration und eine Schnittstelle für weitere eigene Sperren.
+- Bereinigung bei Tod, Unterbrechung und Resource-Stopp statt automatischem
+  Neustart unterbrochener Szenarien; normalisierte Boolean-/0-/1-Rückgaben.
+- Diagnosebefehle, Regressionstests und Dokumentation der eigenen Änderungen.
+
+Die zentrale Clientsteuerung ist wesentlich erweitert, das Interaktionssystem
+bleibt eine Weiterentwicklung von kibooks Grundlage. Weitere Hinweise stehen
+in `UPGRADE_NOTES.md`. Das Original bleibt als Git-Remote `upstream` erhalten.
+
+Repository: https://github.com/BlackShadowRp/zata_RedmInteractions, Branch `master`.
+Resource-Pfad: `[zata]/zata_RedmInteractions`. Die NUI-Adresse wird dynamisch
+über `GetParentResourceName()` ermittelt. `/zata_interact` öffnet die Auswahl.
 
 # Requirements
 
@@ -8,18 +49,18 @@ Configurable interactions with objects or points on the map.
 
 # Install
 
-1. Create a folder named `interactions` in your resources folder.
+1. Clone this repository into `[zata]/zata_RedmInteractions`.
 
-2. Copy the files in this repository to that folder.
+2. Ensure the dependency `uiprompt` starts before this resource.
 
-3. Add `start interactions` to `server.cfg`.
+3. Add `ensure zata_RedmInteractions` to the Zata section of `server.cfg` and remove the old resource entry. Do not start both names.
 
 ## BS controls
 
 - Arrow Down: open the nearby furniture/interaction picker. Arrow keys select;
-  Enter starts the selected interaction, Escape closes the picker.
+  Enter starts the selected interaction, Escape cancels the current animation.
 - Arrow Up: immediately stop an active interaction and return to the starting
-  position. The “Aufstehen” prompt replaces “Nutzen” while interacting.
+  position. Both “Aufstehen” and “Nutzen” remain available while interacting.
 - Arrow Left/Right: silently turn while standing still (90 degrees per second, with a
   configurable 0.2-second acceleration ramp).
   Turning never registers or displays a prompt.
@@ -46,7 +87,7 @@ restart on BS-Live separately.
 
 ### Input diagnostics
 
-Run `/interactionsdebug` and read F8 output to see the actual blocking reason,
+Run `/zata_interactionsdebug` and read F8 output to see the actual blocking reason,
 nearby interaction state and prompt state. Death detection uses the checks from
 `zata_Camps` (invalid ped, entity dead, dead/dying with both flags), normalizing
 numeric zero to false. Player-control locks block silent turning; they do not
@@ -71,7 +112,7 @@ Choosing Cancel in the picker also immediately clears native/external seating
 and other player animations. For external seating, the player stays at the
 current position. Turning movement axes use a 0.1 dead zone.
 
-For stationary turning diagnosis, run `/interactionsturndebug`, close the
+For stationary turning diagnosis, run `/zata_interactionsturndebug`, close the
 console/chat, and hold each arrow key while standing. It logs for ten seconds
 at 500 ms intervals: the exact current turn-block reason, movement axes,
 normal/disabled key readings in input groups 0–2, and actual/last requested

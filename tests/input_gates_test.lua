@@ -84,6 +84,6 @@ state[0x25]=nil;frame();assert(heading==previous,'Raw release must stop immediat
 state[0x27]=true;for i=1,12 do frame() end;previous=heading;frame();assert(math.abs(heading-previous+1.5)<1e-9,'Held right raw key must rotate at full speed')
 state[0x25]=true;previous=heading;frame();assert(heading==previous,'Both raw keys must cancel')
 state[0x25]=nil;state[0x27]=nil;frame()
-commands.interactionsturndebug();frame()
+commands.zata_interactionsturndebug();frame()
 assert(#prompts==2,'turning must not create prompts')
 print('PASS: rotation, simultaneous keys, input/menu gates, prompt switching, instant stop, death cleanup, no turn prompts')

@@ -1,4 +1,4 @@
-# BS changes to Kibook redm-interactions
+# zata_RedmInteractions: Änderungen an kibooks Grundlage
 
 Baseline: BlackShadowRp master `51e7246`, including live bed positions and labels.
 
@@ -19,7 +19,7 @@ RedM animation/native behavior and menu interactions require in-game checks.
 Prompt regression follow-up: match `zata_Camps` death checks, normalize numeric
 native booleans, separate the player-control turning gate from furniture prompts,
 and handle optional menu export failures via logged event/focus fallback. Added
-`/interactionsdebug` and `tests/input_gates_test.lua`. The original reported
+`/zata_interactionsdebug` and `tests/input_gates_test.lua`. The original reported
 in-game blocking reason still requires the player's F8 diagnostic output.
 
 Stationary turning now ramps to the configured speed over
@@ -42,7 +42,7 @@ for scenario, aiming, attachment and key gates. Verify native E seating cancel
 and stationary turns in game; input regression tests cover external cancel and
 numeric-zero scenario results.
 
-Added `/interactionsturndebug` for ten-second client traces of turn blockers,
+Added `/zata_interactionsturndebug` for ten-second client traces of turn blockers,
 input groups and actual/requested heading. Turn gating is centralized in
 `TurnBlockReason` without changing its conditions. This is diagnostic support
 for an unresolved in-game rotation failure; mocked tests alone cannot identify

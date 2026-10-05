@@ -41,7 +41,7 @@ end)
 local function WarnMenuFailure(resource, result)
     if MenuWarnings[resource] then return end
     MenuWarnings[resource] = true
-    print(("[redm-interactions] %s-Menueabfrage fehlgeschlagen: %s; nutze NUI-Fokus und Menue-Ereignisse.")
+    print(("[zata_RedmInteractions] %s-Menueabfrage fehlgeschlagen: %s; nutze NUI-Fokus und Menue-Ereignisse.")
         :format(resource, tostring(result)))
 end
 
@@ -137,7 +137,7 @@ local function TraceTurning(ped)
                 tostring(IsDisabledControlPressed(group, control)))
         end
     end
-    print(("[redm-interactions turn] block=%s speed=%.3f axes=%.3f/%.3f heading=%.3f lastTarget=%s held=%s/%s %s")
+    print(("[zata_RedmInteractions turn] block=%s speed=%.3f axes=%.3f/%.3f heading=%.3f lastTarget=%s held=%s/%s %s")
         :format(TurnBlockReason(ped) or "none", GetEntitySpeed(ped),
             GetControlNormal(0, `INPUT_MOVE_LR`), GetControlNormal(0, `INPUT_MOVE_UD`),
             GetEntityHeading(ped), tostring(TurnDebugTarget), tostring(TurnKeyDown("left")),
@@ -538,7 +538,7 @@ RegisterNUICallback("setInteractionMarker", function(data, cb)
 	cb({})
 end)
 
-RegisterCommand("interact", function(source, args, raw)
+RegisterCommand("zata_interact", function(source, args, raw)
 	StartInteraction()
 end, false)
 
@@ -629,21 +629,21 @@ AddEventHandler("onResourceStop", function(resource)
     end
 end)
 
-RegisterCommand("interactionsdebug", function()
+RegisterCommand("zata_interactionsdebug", function()
     local ped = PlayerPedId()
     local reason = InputBlockReason(ped) or "none"
-    print(("[redm-interactions] ped=%s dead=%s blocked=%s nearby=%s radius=%s picker=%s interaction=%s playerControl=%s")
+    print(("[zata_RedmInteractions] ped=%s dead=%s blocked=%s nearby=%s radius=%s picker=%s interaction=%s playerControl=%s")
         :format(tostring(ped), tostring(IsPlayerDead(ped)), reason, tostring(NearbyInteraction),
             tostring(MaxRadius), tostring(PickerIsOpen), tostring(CurrentInteraction ~= nil),
             tostring(IsPlayerControlOn(PlayerId()))))
-    print(("[redm-interactions] interactControl=%s promptEnabled=%s feather=%s vorp=%s")
+    print(("[zata_RedmInteractions] interactControl=%s promptEnabled=%s feather=%s vorp=%s")
         :format(tostring(Config.InteractControl), tostring(InteractPrompt and InteractPrompt:isEnabled()),
             GetResourceState("feather-menu"), GetResourceState("vorp_menu")))
 end, false)
 
-RegisterCommand("interactionsturndebug", function()
+RegisterCommand("zata_interactionsturndebug", function()
     TurnDebugUntil = GetGameTimer() + 10000
     TurnDebugNext = 0
     TurnDebugTarget = nil
-    print("[redm-interactions turn] Diagnose fuer 10 Sekunden aktiv. Links/rechts halten; Tastenwerte: enabled/pressed/disabledPressed.")
+    print("[zata_RedmInteractions turn] Diagnose fuer 10 Sekunden aktiv. Links/rechts halten; Tastenwerte: enabled/pressed/disabledPressed.")
 end, false)

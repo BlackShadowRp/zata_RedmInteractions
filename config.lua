@@ -3,6 +3,28 @@ Config = {}
 -- Control to start/stop interactions. Comment this out to disable the control.
 Config.InteractControl = `INPUT_GAME_MENU_DOWN` --`INPUT_GAME_MENU_TAB_LEFT_SECONDARY` -- Z
 
+-- Stop an active interaction immediately (no picker required).
+Config.StopControl = `INPUT_GAME_MENU_UP`
+Config.StopLabel = "Aufstehen"
+
+-- Silent turning while standing still. Controls never create prompts.
+Config.Turn = {
+    enabled = true,
+    leftControl = `INPUT_GAME_MENU_LEFT`,
+    rightControl = `INPUT_GAME_MENU_RIGHT`,
+    leftRawKey = 0x25, -- Arrow Left: held keyboard state, independent of menu repeats.
+    rightRawKey = 0x27, -- Arrow Right. Set raw keys to false to use only controls.
+    degreesPerSecond = 90.0,
+    accelerationSeconds = 0.2, -- Smooth start/reversal; release and input blocks stop immediately.
+    maxSpeed = 0.1
+}
+
+-- Optional integration for additional menus/actions without NUI focus.
+-- Return true while your custom UI/action should block these controls.
+Config.IsInputBlocked = function()
+    return false
+end
+
 -- Interaction picker menu controls
 Config.MenuUpControl = `INPUT_GAME_MENU_UP`
 Config.MenuDownControl = `INPUT_GAME_MENU_DOWN`

@@ -2,10 +2,159 @@ local PickerIsOpen = false
 local InteractionMarker
 local StartingCoords
 local CurrentInteraction
-local CanStartInteraction = true
+local CanStartInteraction = false
+local NearbyInteraction = false
+local InteractionPed
+local InteractionStartedAt = 0
 local MaxRadius = 0.0
+local TurnDebugUntil = 0
+local TurnDebugNext = 0
+local TurnDebugTarget
 
-local InteractPrompt = Uiprompt:new(Config.InteractControl, "Nutzen", nil, false)
+local InteractPrompt = Config.InteractControl and Uiprompt:new(Config.InteractControl, "Nutzen", nil, false)
+local StopPrompt = Config.StopControl and Uiprompt:new(Config.StopControl, Config.StopLabel, nil, false)
+
+-- Some RedM natives/integrations return 0/1 instead of Lua booleans.
+local function AsBoolean(value)
+    return value ~= nil and value ~= false and value ~= 0
+end
+
+local function IsPlayerDead(ped)
+    -- Same checks as zata_Camps:isBuildActionDeadOrDying.
+    if not ped or ped == 0 or not DoesEntityExist(ped) then return true end
+    return AsBoolean(IsEntityDead(ped)) or AsBoolean(IsPedDeadOrDying(ped, true))
+        or AsBoolean(IsPedDeadOrDying(ped, false))
+end
+
+local MenuEvents = { feather = false, vorp = false }
+local MenuWarnings = {}
+AddEventHandler("FeatherMenu:opened", function() MenuEvents.feather = true end)
+AddEventHandler("FeatherMenu:closed", function() MenuEvents.feather = false end)
+AddEventHandler("vorp_menu:openmenu", function() MenuEvents.vorp = true end)
+AddEventHandler("vorp_menu:closemenu", function() MenuEvents.vorp = false end)
+AddEventHandler("onClientResourceStop", function(resource)
+    if resource == "feather-menu" then MenuEvents.feather = false end
+    if resource == "vorp_menu" then MenuEvents.vorp = false end
+    MenuWarnings[resource] = nil
+end)
+
+local function WarnMenuFailure(resource, result)
+    if MenuWarnings[resource] then return end
+    MenuWarnings[resource] = true
+    print(("[redm-interactions] %s-Menueabfrage fehlgeschlagen: %s; nutze NUI-Fokus und Menue-Ereignisse.")
+        :format(resource, tostring(result)))
+end
+
+local function ExternalInputBlockReason()
+    if AsBoolean(IsNuiFocused()) then return "nui_focus" end
+    if AsBoolean(IsPauseMenuActive()) then return "pause_menu" end
+    if GetResourceState("feather-menu") == "started" then
+        local ok, menu = pcall(function() return exports["feather-menu"]:initiate() end)
+        if ok and type(menu) == "table" then
+            if type(menu.activeMenu) == "table" then return "feather_menu" end
+        else
+            WarnMenuFailure("feather-menu", menu)
+            if MenuEvents.feather then return "feather_menu_event" end
+        end
+    end
+    if GetResourceState("vorp_menu") == "started" then
+        local ok, menus = pcall(function()
+            local api = exports["vorp_menu"]:GetMenuData()
+            return api.GetOpenedMenus()
+        end)
+        if ok and type(menus) == "table" then
+            -- Do not treat false entries/holes in Opened as active menus.
+            for _, menu in pairs(menus) do
+                if type(menu) == "table" then return "vorp_menu" end
+            end
+        else
+            WarnMenuFailure("vorp_menu", menus)
+            if MenuEvents.vorp then return "vorp_menu_event" end
+        end
+    end
+    if Config.IsInputBlocked and AsBoolean(Config.IsInputBlocked()) then return "custom_block" end
+end
+
+local function InputBlockReason(ped)
+    if IsPlayerDead(ped) then return "dead_or_invalid_ped" end
+    if AsBoolean(IsPedOnMount(ped)) then return "mounted" end
+    if AsBoolean(IsPedEnteringAnyTransport(ped)) then return "entering_transport" end
+    if AsBoolean(IsPedInAnyVehicle(ped, false)) then return "vehicle" end
+    if AsBoolean(IsPedRagdoll(ped)) then return "ragdoll" end
+    if AsBoolean(IsPedFalling(ped)) then return "falling" end
+    if AsBoolean(IsPedClimbing(ped)) then return "climbing" end
+    if AsBoolean(IsPedSwimming(ped)) then return "swimming" end
+    if AsBoolean(IsPedHogtied(ped)) then return "hogtied" end
+    if AsBoolean(IsPedCuffed(ped)) then return "cuffed" end
+    if AsBoolean(IsPedInCombat(ped)) then return "combat" end
+    return ExternalInputBlockReason()
+end
+
+local function CanUseInputs(ped)
+    return InputBlockReason(ped) == nil
+end
+
+local function TurnBlockReason(ped)
+    local reason = InputBlockReason(ped)
+    if reason then return reason end
+    if PickerIsOpen then return "picker_open" end
+    if CurrentInteraction then return "active_interaction" end
+    if not Config.Turn.enabled then return "turn_disabled" end
+    if not AsBoolean(IsPlayerControlOn(PlayerId())) then return "player_control_off" end
+    if GetEntitySpeed(ped) > Config.Turn.maxSpeed then return "moving_speed" end
+    if math.abs(GetControlNormal(0, `INPUT_MOVE_LR`)) >= 0.1 then return "movement_axis_lr" end
+    if math.abs(GetControlNormal(0, `INPUT_MOVE_UD`)) >= 0.1 then return "movement_axis_ud" end
+    if AsBoolean(IsPedUsingAnyScenario(ped)) then return "scenario" end
+    if AsBoolean(IsPedJumping(ped)) then return "jumping" end
+    if AsBoolean(IsPedAimingFromCover(ped)) then return "cover_aiming" end
+    if AsBoolean(IsPlayerFreeAiming(PlayerId())) then return "aiming" end
+    if AsBoolean(IsPedShooting(ped)) then return "shooting" end
+    if AsBoolean(IsEntityAttached(ped)) then return "attached" end
+    if not AsBoolean(IsControlEnabled(0, `INPUT_MOVE_LR`)) then return "movement_lr_disabled" end
+    if not AsBoolean(IsControlEnabled(0, `INPUT_MOVE_UD`)) then return "movement_ud_disabled" end
+end
+
+local function TurnKeyDown(side)
+    local control = Config.Turn[side .. "Control"]
+    if not AsBoolean(IsControlEnabled(0, control)) then return false end
+    local rawKey = Config.Turn[side .. "RawKey"]
+    if rawKey and type(IsRawKeyDown) == "function" then
+        return AsBoolean(IsRawKeyDown(rawKey))
+    end
+    return AsBoolean(IsControlPressed(0, control))
+end
+
+local function TraceTurning(ped)
+    local now = GetGameTimer()
+    if now >= TurnDebugUntil or now < TurnDebugNext then return end
+    TurnDebugNext = now + 500
+    local keys = {}
+    for group = 0, 2 do
+        for _, side in ipairs({"left", "right"}) do
+            local control = Config.Turn[side .. "Control"]
+            keys[#keys + 1] = ("g%s.%s=%s/%s/%s"):format(group, side,
+                tostring(IsControlEnabled(group, control)), tostring(IsControlPressed(group, control)),
+                tostring(IsDisabledControlPressed(group, control)))
+        end
+    end
+    print(("[redm-interactions turn] block=%s speed=%.3f axes=%.3f/%.3f heading=%.3f lastTarget=%s held=%s/%s %s")
+        :format(TurnBlockReason(ped) or "none", GetEntitySpeed(ped),
+            GetControlNormal(0, `INPUT_MOVE_LR`), GetControlNormal(0, `INPUT_MOVE_UD`),
+            GetEntityHeading(ped), tostring(TurnDebugTarget), tostring(TurnKeyDown("left")),
+            tostring(TurnKeyDown("right")), table.concat(keys, " ")))
+end
+
+local function SetPromptVisible(prompt, visible)
+    if prompt and prompt:isEnabled() ~= visible then
+        prompt:setEnabledAndVisible(visible)
+    end
+end
+
+local function ClosePicker()
+    SendNUIMessage({type = "hideInteractionPicker"})
+    InteractionMarker = nil
+    PickerIsOpen = false
+end
 
 function DrawMarker(type, posX, posY, posZ, dirX, dirY, dirZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, red, green, blue, alpha, bobUpAndDown, faceCamera, p19, rotate, textureDict, textureName, drawOnEnts)
 	Citizen.InvokeNative(0x2A32FAA57B937173, type, posX, posY, posZ, dirX, dirY, dirZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, red, green, blue, alpha, bobUpAndDown, faceCamera, p19, rotate, textureDict, textureName, drawOnEnts)
@@ -61,10 +210,15 @@ function PlayAnimation(ped, anim)
 	end
 
 	RequestAnimDict(anim.dict)
-
-	while not HasAnimDictLoaded(anim.dict) do
-		Citizen.Wait(0)
-	end
+    local deadline = GetGameTimer() + 5000
+    while not HasAnimDictLoaded(anim.dict) do
+        if GetGameTimer() > deadline or ped ~= PlayerPedId() or IsPlayerDead(ped) then
+            RemoveAnimDict(anim.dict)
+            return
+        end
+        Citizen.Wait(0)
+    end
+    if ped ~= PlayerPedId() or IsPlayerDead(ped) then return end
 
 	TaskPlayAnim(ped, anim.dict, anim.name, 0.0, 0.0, -1, 1, 1.0, false, false, false, "", false)
 
@@ -78,6 +232,9 @@ function StartInteractionAtCoords(interaction)
 	local h = interaction.heading
 
 	local ped = PlayerPedId()
+	if not CanUseInputs(ped) then return end
+	InteractionPed = ped
+	InteractionStartedAt = GetGameTimer()
 
 	if not StartingCoords then
 		StartingCoords = GetEntityCoords(ped)
@@ -260,6 +417,7 @@ function GetAvailableInteractions()
 end
 
 function StartInteraction()
+	if PickerIsOpen or not CanUseInputs(PlayerPedId()) then return end
 	local availableInteractions = GetAvailableInteractions()
 
 	if #availableInteractions > 0 then
@@ -281,20 +439,24 @@ function StartInteraction()
 	end
 end
 
-function StopInteraction()
-	CurrentInteraction = nil
-
-	local ped = PlayerPedId()
-
-	ClearPedTasksImmediately(ped)
-	FreezeEntityPosition(ped, false)
-
-	Citizen.Wait(100)
-
-	if StartingCoords then
-		SetEntityCoordsNoOffset(ped, StartingCoords.x, StartingCoords.y, StartingCoords.z)
-		StartingCoords = nil
-	end
+function StopInteraction(interrupted, cancelExternal)
+    local ped = InteractionPed or (cancelExternal and PlayerPedId())
+    local coords = StartingCoords
+    CurrentInteraction = nil
+    StartingCoords = nil
+    InteractionPed = nil
+    ClosePicker()
+    SetPromptVisible(StopPrompt, false)
+    if ped and DoesEntityExist(ped) then
+        FreezeEntityPosition(ped, false)
+        -- Death/other interruptions must preserve the new task and position.
+        if not interrupted and not IsPlayerDead(ped) then
+            ClearPedTasksImmediately(ped)
+            if coords then
+                SetEntityCoordsNoOffset(ped, coords.x, coords.y, coords.z)
+            end
+        end
+    end
 end
 
 function SetInteractionMarker(target)
@@ -361,7 +523,7 @@ RegisterNUICallback("startInteraction", function(data, cb)
 end)
 
 RegisterNUICallback("stopInteraction", function(data, cb)
-	StopInteraction()
+	StopInteraction(false, true)
 	cb({})
 end)
 
@@ -381,75 +543,107 @@ RegisterCommand("interact", function(source, args, raw)
 end, false)
 
 Citizen.CreateThread(function()
-	for _, interaction in ipairs(Config.Interactions) do
-		MaxRadius = math.max(MaxRadius, interaction.radius)
-	end
-
-	while true do
-		local ped = PlayerPedId()
-
-		CanStartInteraction = not IsPedDeadOrDying(ped) and not IsPedInCombat(ped)
-
-		if CanStartInteraction and IsInteractionNearby(ped) then
-			if not InteractPrompt:isEnabled() then
-				InteractPrompt:setEnabledAndVisible(true)
-			end
-		else
-			if InteractPrompt:isEnabled() then
-				InteractPrompt:setEnabledAndVisible(false)
-			end
-		end
-
-		Citizen.Wait(1000)
-	end
+    for _, interaction in ipairs(Config.Interactions) do
+        MaxRadius = math.max(MaxRadius, interaction.radius)
+    end
+    while true do
+        local ped = PlayerPedId()
+        NearbyInteraction = CanUseInputs(ped) and IsInteractionNearby(ped)
+        Citizen.Wait(500)
+    end
 end)
 
 Citizen.CreateThread(function()
-	while true do
-		local playerPed = PlayerPedId()
+    local turnVelocity = 0.0
+    while true do
+        local ped = PlayerPedId()
+        CanStartInteraction = CanUseInputs(ped)
+        local turnApplied = false
+        TraceTurning(ped)
 
-		if IsControlJustPressed(0, Config.InteractControl) and CanStartInteraction then
-			StartInteraction()
-		end
+        if CurrentInteraction and (ped ~= InteractionPed or IsPlayerDead(ped)
+            or AsBoolean(IsPedOnMount(ped)) or AsBoolean(IsPedInAnyVehicle(ped, false))
+            or AsBoolean(IsPedRagdoll(ped)) or AsBoolean(IsPedHogtied(ped)) or AsBoolean(IsPedCuffed(ped))) then
+            StopInteraction(true)
+        end
+        if CurrentInteraction and GetGameTimer() - InteractionStartedAt > 1500
+            and not IsPedUsingInteraction(ped, CurrentInteraction) then
+            StopInteraction(true)
+        end
 
-		if PickerIsOpen then
-			DisableAllControlActions(0)
+        SetPromptVisible(InteractPrompt, CanStartInteraction and (NearbyInteraction or CurrentInteraction ~= nil)
+            and not PickerIsOpen)
+        SetPromptVisible(StopPrompt, CanStartInteraction and CurrentInteraction ~= nil and not PickerIsOpen)
 
-			if IsDisabledControlJustPressed(0, Config.MenuUpControl) then
-				SendNUIMessage({
-					type = "moveSelectionUp"
-				})
-			end
+        if PickerIsOpen and not CanStartInteraction then ClosePicker() end
 
-			if IsDisabledControlJustPressed(0, Config.MenuDownControl) then
-				SendNUIMessage({
-					type = "moveSelectionDown"
-				})
-			end
-
-			if IsDisabledControlJustPressed(0, Config.MenuAcceptControl) then
-				SendNUIMessage({
-					type = "startInteraction"
-				})
-				SetInteractionMarker()
-				PickerIsOpen = false
-			end
-
-			if IsDisabledControlJustPressed(0, Config.MenuCancelControl) or not CanStartInteraction then
-				SendNUIMessage({
-					type = "hideInteractionPicker"
-				})
-				SetInteractionMarker()
-				PickerIsOpen = false
-			end
-
-			if InteractionMarker then
-				DrawInteractionMarker()
-			end
-		elseif CurrentInteraction and not IsPedUsingInteraction(playerPed, CurrentInteraction) then
-			StartInteractionAtCoords(CurrentInteraction)
-		end
-
-		Citizen.Wait(0)
-	end
+        if PickerIsOpen then
+            DisableAllControlActions(0)
+            if IsDisabledControlJustPressed(0, Config.MenuUpControl) then
+                SendNUIMessage({type = "moveSelectionUp"})
+            end
+            if IsDisabledControlJustPressed(0, Config.MenuDownControl) then
+                SendNUIMessage({type = "moveSelectionDown"})
+            end
+            if IsDisabledControlJustPressed(0, Config.MenuAcceptControl) then
+                SendNUIMessage({type = "startInteraction"})
+                InteractionMarker = nil
+                PickerIsOpen = false
+            elseif IsDisabledControlJustPressed(0, Config.MenuCancelControl) then
+                StopInteraction(false, true)
+            end
+            if InteractionMarker then DrawInteractionMarker() end
+        elseif CanStartInteraction then
+            if CurrentInteraction and Config.StopControl and IsControlEnabled(0, Config.StopControl)
+                and IsControlJustPressed(0, Config.StopControl) then
+                StopInteraction()
+            elseif Config.InteractControl and (NearbyInteraction or CurrentInteraction ~= nil)
+                and IsControlEnabled(0, Config.InteractControl)
+                and IsControlJustPressed(0, Config.InteractControl) then
+                StartInteraction()
+            elseif not TurnBlockReason(ped) then
+                local left = TurnKeyDown("left")
+                local right = TurnKeyDown("right")
+                if left ~= right then
+                    local dt = math.min(GetFrameTime(), 0.05)
+                    local speed = math.max(0.0, Config.Turn.degreesPerSecond)
+                    local target = left and speed or -speed
+                    local ramp = math.max(0.0, Config.Turn.accelerationSeconds or 0.2)
+                    local step = ramp > 0 and speed * dt / ramp or math.huge
+                    turnVelocity = turnVelocity + math.max(-step, math.min(step, target - turnVelocity))
+                    local targetHeading = (GetEntityHeading(ped) + turnVelocity * dt) % 360.0
+                    SetEntityHeading(ped, targetHeading)
+                    if GetGameTimer() < TurnDebugUntil then TurnDebugTarget = targetHeading end
+                    turnApplied = true
+                end
+            end
+        end
+        if not turnApplied then turnVelocity = 0.0 end
+        Citizen.Wait(0)
+    end
 end)
+
+AddEventHandler("onResourceStop", function(resource)
+    if resource == GetCurrentResourceName() then
+        StopInteraction(true)
+    end
+end)
+
+RegisterCommand("interactionsdebug", function()
+    local ped = PlayerPedId()
+    local reason = InputBlockReason(ped) or "none"
+    print(("[redm-interactions] ped=%s dead=%s blocked=%s nearby=%s radius=%s picker=%s interaction=%s playerControl=%s")
+        :format(tostring(ped), tostring(IsPlayerDead(ped)), reason, tostring(NearbyInteraction),
+            tostring(MaxRadius), tostring(PickerIsOpen), tostring(CurrentInteraction ~= nil),
+            tostring(IsPlayerControlOn(PlayerId()))))
+    print(("[redm-interactions] interactControl=%s promptEnabled=%s feather=%s vorp=%s")
+        :format(tostring(Config.InteractControl), tostring(InteractPrompt and InteractPrompt:isEnabled()),
+            GetResourceState("feather-menu"), GetResourceState("vorp_menu")))
+end, false)
+
+RegisterCommand("interactionsturndebug", function()
+    TurnDebugUntil = GetGameTimer() + 10000
+    TurnDebugNext = 0
+    TurnDebugTarget = nil
+    print("[redm-interactions turn] Diagnose fuer 10 Sekunden aktiv. Links/rechts halten; Tastenwerte: enabled/pressed/disabledPressed.")
+end, false)

@@ -260,6 +260,24 @@ function StartInteractionAtCoords(interaction)
 end
 
 function StartInteractionAtObject(interaction)
+    -- Zeppelinbänke benötigen einen mitbewegten Sitz statt fester Weltkoordinaten.
+    local handled, started = false, false
+    local ped = PlayerPedId()
+    if not CanUseInputs(ped, true) then return end
+    TriggerEvent("zata_Zeppelin:client:startBenchInteraction", interaction, function(result)
+        handled = type(result) == "table" and result.handled == true
+        started = handled and result.started == true
+    end)
+    if handled then
+        if started then
+            InteractionPed = ped
+            InteractionStartedAt = GetGameTimer()
+            StartingCoords = nil
+            CurrentInteraction = interaction
+            CurrentInteraction.zeppelinBench = true
+        end
+        return
+    end
 	local objectHeading = GetEntityHeading(interaction.object)
 	local objectCoords = GetEntityCoords(interaction.object)
 
@@ -442,6 +460,11 @@ end
 function StopInteraction(interrupted, cancelExternal)
     local ped = InteractionPed or (cancelExternal and PlayerPedId())
     local coords = StartingCoords
+    if CurrentInteraction and CurrentInteraction.zeppelinBench then
+        -- Die Zeppelinseite löst den Sitz und gibt auf dem aktuellen Deck frei.
+        TriggerEvent("zata_Zeppelin:client:stopBenchInteraction", ped, interrupted == true)
+        coords = nil
+    end
     CurrentInteraction = nil
     StartingCoords = nil
     InteractionPed = nil
@@ -477,9 +500,9 @@ end
 
 function IsPedUsingInteraction(ped, interaction)
 	if interaction.scenario then
-		return IsPedUsingScenarioHash(ped, GetHashKey(interaction.scenario))
+		return AsBoolean(IsPedUsingScenarioHash(ped, GetHashKey(interaction.scenario)))
 	elseif interaction.animation then
-		return IsEntityPlayingAnim(ped, interaction.animation.dict, interaction.animation.name, 1)
+		return AsBoolean(IsEntityPlayingAnim(ped, interaction.animation.dict, interaction.animation.name, 1))
 	else
 		return false
 	end

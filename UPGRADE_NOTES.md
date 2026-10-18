@@ -54,3 +54,16 @@ control checks and all turn-block conditions. Debug traces now include the
 resolved held state. Regression tests simulate a held raw key with intermittent
 menu-control pulses, full-speed rotation, release, both keys and blocked input.
 In-game confirmation remains required.
+
+## Mitbewegte Zeppelinbänke
+
+`client.lua` fragt beim Start einer Objektinteraktion ausschließlich lokal
+`zata_Zeppelin:client:startBenchInteraction` ab. Nur erkannte eigene Zeppelinbänke
+werden übernommen; sonst bleibt der normale Möbelablauf aktiv. Beim Beenden
+geht `zata_Zeppelin:client:stopBenchInteraction` an die Zeppelinseite. Der Spieler
+kehrt dadurch nicht an die alte Weltposition vor der Fahrt zurück. Keine
+zusätzlichen periodischen Netzwerk- oder Koordinatenpakete. Die Zeppelinseite
+verwaltet Szenariopunkt, Netzwerk-Rumpfverbindung und sichere Deckrückgabe.
+Bei Upstream-Updates diese beiden Hooks erhalten. Normale Möbel, Abbruch,
+bewegter Sitz und Resource-Stopp werden mit Lua-Stubs geprüft; Mehrclient-Sitzen
+und die nativen Szenarioanimationen sind zusätzlich im Spiel zu prüfen.

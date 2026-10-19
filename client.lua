@@ -46,6 +46,11 @@ local function WarnMenuFailure(resource, result)
 end
 
 local function ExternalInputBlockReason()
+    -- Am Schachtisch übernehmen die eigenen Sitz- und Brettkamera-Prompts.
+    if GetResourceState("zata_Chess") == "started" then
+        local ok, blocked = pcall(function() return exports.zata_Chess:blocksInteractions() end)
+        if ok and blocked == true then return "chess" end
+    end
     if AsBoolean(IsNuiFocused()) then return "nui_focus" end
     if AsBoolean(IsPauseMenuActive()) then return "pause_menu" end
     if GetResourceState("feather-menu") == "started" then

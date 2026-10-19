@@ -67,3 +67,12 @@ verwaltet Szenariopunkt, Netzwerk-Rumpfverbindung und sichere Deckrückgabe.
 Bei Upstream-Updates diese beiden Hooks erhalten. Normale Möbel, Abbruch,
 bewegter Sitz und Resource-Stopp werden mit Lua-Stubs geprüft; Mehrclient-Sitzen
 und die nativen Szenarioanimationen sind zusätzlich im Spiel zu prüfen.
+
+## Schachtische von zata_Chess
+
+`client.lua` fragt vor den allgemeinen Eingaben den optionalen Client-Export
+`exports.zata_Chess:blocksInteractions()` ab. Nur am Schachtisch oder während
+seiner Platzierung/Sitzung blendet redm-interactions seine eigenen Prompts aus.
+Fehlt die Resource oder der Export, bleibt das bisherige Verhalten erhalten.
+Prüfung: Schach-Hocker mit B, Brettkamera mit G, Aufstehen mit B; außerhalb
+bleiben normale Möbelinteraktionen verfügbar. Kein NUI-Fokus wird dafür erzwungen.

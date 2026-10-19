@@ -76,3 +76,11 @@ seiner Platzierung/Sitzung blendet redm-interactions seine eigenen Prompts aus.
 Fehlt die Resource oder der Export, bleibt das bisherige Verhalten erhalten.
 Prüfung: Schach-Hocker mit B, Brettkamera mit G, Aufstehen mit B; außerhalb
 bleiben normale Möbelinteraktionen verfügbar. Kein NUI-Fokus wird dafür erzwungen.
+
+## Sitzstatus bewegter Zeppelinbänke
+
+Der Möbel-Watchdog fragt für `zeppelinBench` synchron den lokalen Hook
+`zata_Zeppelin:client:benchInteractionActive` ab. Dadurch beendet ein vom
+GENERIC-Szenario abweichender konkreter Sitztyp nicht versehentlich den Sitz.
+Normale Möbel behalten ihre bisherige Szenario-/Animationsprüfung.
+Beim Upstream-Update diesen Hook zusammen mit den Start-/Stop-Hooks erhalten.

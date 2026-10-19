@@ -504,6 +504,11 @@ function DrawInteractionMarker()
 end
 
 function IsPedUsingInteraction(ped, interaction)
+    if interaction.zeppelinBench then
+        local active = false
+        TriggerEvent('zata_Zeppelin:client:benchInteractionActive', ped, function(value) active = value == true end)
+        return active
+    end
 	if interaction.scenario then
 		return AsBoolean(IsPedUsingScenarioHash(ped, GetHashKey(interaction.scenario)))
 	elseif interaction.animation then

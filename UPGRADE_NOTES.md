@@ -57,16 +57,26 @@ In-game confirmation remains required.
 
 ## Mitbewegte Zeppelinbänke
 
-`client.lua` fragt beim Start einer Objektinteraktion ausschließlich lokal
-`zata_Zeppelin:client:startBenchInteraction` ab. Nur erkannte eigene Zeppelinbänke
-werden übernommen; sonst bleibt der normale Möbelablauf aktiv. Beim Beenden
-geht `zata_Zeppelin:client:stopBenchInteraction` an die Zeppelinseite. Der Spieler
-kehrt dadurch nicht an die alte Weltposition vor der Fahrt zurück. Keine
-zusätzlichen periodischen Netzwerk- oder Koordinatenpakete. Die Zeppelinseite
-verwaltet Szenariopunkt, Netzwerk-Rumpfverbindung und sichere Deckrückgabe.
-Bei Upstream-Updates diese beiden Hooks erhalten. Normale Möbel, Abbruch,
-bewegter Sitz und Resource-Stopp werden mit Lua-Stubs geprüft; Mehrclient-Sitzen
-und die nativen Szenarioanimationen sind zusätzlich im Spiel zu prüfen.
+Der normale Möbelstart in `StartInteractionAtObject` bleibt aktiv. Erst nach
+`StartInteractionAtCoords` meldet `client.lua` den lokalen Hook
+`zata_Zeppelin:client:benchInteractionStarted`. Bestätigt die Zeppelinseite eine
+eigene Bank, wird die laufende Interaktion als `zeppelinBench` markiert und die
+Rückkehr zur alten Weltposition ausgeschaltet. Der frühere synchrone
+`startBenchInteraction`-Hook bleibt kompatibel vorhanden, wird von der aktuellen
+Zeppelinseite aber nicht mehr zum Abfangen des Möbelstarts verwendet.
+
+Stop- und Status-Hooks bleiben erhalten. Die Zeppelinseite verschiebt bei
+Rumpfbewegung den bereits verwendeten Szenariopunkt und den eigenen Spieler;
+sie startet keine neue Sitzaufgabe und verwendet keinen zusätzlichen Ped-Attach.
+Im Stillstand erfolgen keine Sitzpositionskorrekturen. Die Statusmeldung sperrt
+zugleich die Zeppelin-Deckrettung während einer laufenden Sitzaktion.
+
+Bei Upstream-Updates Nachstart-, Stop- und Status-Hook gemeinsam erhalten.
+`zata_Zeppelin/tests/bench_attachment_test.lua` prüft den echten Möbelstart mit
+Stricken, Translation/Drehung, unveränderte Aufgabe, bestehende Szenariopunkte,
+ruhenden Sitz und Aufstehen; `tests/input_gates_test.lua` die allgemeinen
+Eingaben. Native RedM-Animation, Höhenruhe und Mitnahme bei mehreren Clients
+bleiben im Spiel zu prüfen.
 
 ## Schachtische von zata_Chess
 

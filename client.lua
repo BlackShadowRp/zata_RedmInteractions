@@ -301,6 +301,13 @@ function StartInteractionAtObject(interaction)
 	interaction.heading = h
 
 	StartInteractionAtCoords(interaction)
+    -- Erst nach dem unveränderten Möbelstart die optionale Mitnahme anmelden.
+    TriggerEvent('zata_Zeppelin:client:benchInteractionStarted', interaction, function(managed)
+        if managed == true and CurrentInteraction == interaction then
+            CurrentInteraction.zeppelinBench = true
+            StartingCoords = nil
+        end
+    end)
 end
 
 function IsCompatible(t, ped)

@@ -57,26 +57,36 @@ In-game confirmation remains required.
 
 ## Mitbewegte Zeppelinbänke
 
-Der normale Möbelstart in `StartInteractionAtObject` bleibt aktiv. Erst nach
-`StartInteractionAtCoords` meldet `client.lua` den lokalen Hook
-`zata_Zeppelin:client:benchInteractionStarted`. Bestätigt die Zeppelinseite eine
-eigene Bank, wird die laufende Interaktion als `zeppelinBench` markiert und die
-Rückkehr zur alten Weltposition ausgeschaltet. Der frühere synchrone
-`startBenchInteraction`-Hook bleibt kompatibel vorhanden, wird von der aktuellen
-Zeppelinseite aber nicht mehr zum Abfangen des Möbelstarts verwendet.
+`StartInteractionAtObject` bietet vor der Umrechnung in Weltkoordinaten den
+synchronen Hook `zata_Zeppelin:client:startBenchInteraction` an. Erkannte
+Zeppelinbänke mit Szenario werden vollständig von der Zeppelinseite gestartet:
+`CREATE_SCENARIO_POINT_HASH_ATTACHED_TO_ENTITY` bindet den Sitzpunkt an die echte
+Bank, `TASK_USE_SCENARIO_POINT` startet ausschließlich diesen Punkt. Es gibt für
+Szenariositze keinen parallelen Welt-Szenariostart, Ped-Attach oder laufenden
+Ped-/Szenariopunktteleport. Fehlende Bindung und Eintrittsfehler werden beendet;
+es wird kein zweiter Bewegungsmechanismus zugeschaltet.
 
-Stop- und Status-Hooks bleiben erhalten. Die Zeppelinseite verschiebt bei
-Rumpfbewegung den bereits verwendeten Szenariopunkt und den eigenen Spieler;
-sie startet keine neue Sitzaufgabe und verwendet keinen zusätzlichen Ped-Attach.
-Im Stillstand erfolgen keine Sitzpositionskorrekturen. Die Statusmeldung sperrt
-zugleich die Zeppelin-Deckrettung während einer laufenden Sitzaktion.
+Normale Möbel behalten ihren bisherigen Start. Reine Animationen ohne Szenario
+behalten ebenfalls `StartInteractionAtCoords`; nur für erkannte Zeppelinbänke
+meldet der anschließende Hook `benchInteractionStarted` die Animation an einem
+eigenen Ped-Transformpfad an. Der Nachstart-Hook läuft nur, wenn der normale
+Start tatsächlich die aktuelle Interaktion gesetzt hat.
 
-Bei Upstream-Updates Nachstart-, Stop- und Status-Hook gemeinsam erhalten.
-`zata_Zeppelin/tests/bench_attachment_test.lua` prüft den echten Möbelstart mit
-Stricken, Translation/Drehung, unveränderte Aufgabe, bestehende Szenariopunkte,
-ruhenden Sitz und Aufstehen; `tests/input_gates_test.lua` die allgemeinen
-Eingaben. Native RedM-Animation, Höhenruhe und Mitnahme bei mehreren Clients
-bleiben im Spiel zu prüfen.
+Zeppelininteraktionen markieren `zeppelinBench` und verlassen die Rückkehr zur
+alten Weltposition. Beim Aufstehen beendet `StopInteraction` die alte Aufgabe
+vor dem Zeppelin-Stop-Hook, damit dessen Deck-Warmup nicht nachträglich durch
+`ClearPedTasksImmediately` gelöst wird. Der zusätzliche lokale Hook
+`zata_Zeppelin:client:benchInteractionEnded` entfernt nach einem selbst erkannten
+Abbruch ausschließlich den Adapterzustand, ohne neue Aufgaben, Attach-Verbindungen
+oder Positionen anzutasten. Stop-, Status-, Vorstart-, Nachstart- und Ende-Hook
+bei Upstream-Updates gemeinsam erhalten.
+
+`zata_Zeppelin/tests/bench_attachment_test.lua` prüft vollständige Signaturen,
+Bankbindung, genau einen Bewegungspfad, kleine Park-/Flugschritte, Ein-/Ausstieg,
+Timeout, Punkt-/Bankverlust, fremde Aufgaben, Teleport, Tod, Pedwechsel und
+Resource-Stopp. Der Test simuliert keine native Sitzphysik. Native RedM-Mitnahme
+und Ped-/Szenariosynchronisierung auf mehreren Clients sind im Spiel zu prüfen.
+Die allgemeinen Eingaben prüft `tests/input_gates_test.lua`.
 
 ## Schachtische von zata_Chess
 
@@ -90,7 +100,10 @@ bleiben normale Möbelinteraktionen verfügbar. Kein NUI-Fokus wird dafür erzwu
 ## Sitzstatus bewegter Zeppelinbänke
 
 Der Möbel-Watchdog fragt für `zeppelinBench` synchron den lokalen Hook
-`zata_Zeppelin:client:benchInteractionActive` ab. Dadurch beendet ein vom
-GENERIC-Szenario abweichender konkreter Sitztyp nicht versehentlich den Sitz.
-Normale Möbel behalten ihre bisherige Szenario-/Animationsprüfung.
-Beim Upstream-Update diesen Hook zusammen mit den Start-/Stop-Hooks erhalten.
+`zata_Zeppelin:client:benchInteractionActive` ab. Die Zeppelinseite hält damit
+auch die begrenzte Eintrittsphase exklusiv und
+prüft anschließend den tatsächlich verwendeten bankgebundenen Punkt. Ein
+GENERIC-Szenario darf auf einen anderen Punkt derselben Bank auflösen;
+`scenario=0` wird nicht als unbewiesener Fertig-Check verwendet. Normale Möbel
+behalten ihre bisherige Szenario-/Animationsprüfung. Beim Upstream-Update diesen
+Hook zusammen mit den Start-/Stop-/Ende-Hooks erhalten.

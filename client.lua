@@ -302,6 +302,7 @@ function StartInteractionAtObject(interaction)
 
 	StartInteractionAtCoords(interaction)
     -- Erst nach dem unveränderten Möbelstart die optionale Mitnahme anmelden.
+    if CurrentInteraction ~= interaction then return end
     TriggerEvent('zata_Zeppelin:client:benchInteractionStarted', interaction, function(managed)
         if managed == true and CurrentInteraction == interaction then
             CurrentInteraction.zeppelinBench = true
@@ -472,11 +473,7 @@ end
 function StopInteraction(interrupted, cancelExternal)
     local ped = InteractionPed or (cancelExternal and PlayerPedId())
     local coords = StartingCoords
-    if CurrentInteraction and CurrentInteraction.zeppelinBench then
-        -- Die Zeppelinseite löst den Sitz und gibt auf dem aktuellen Deck frei.
-        TriggerEvent("zata_Zeppelin:client:stopBenchInteraction", ped, interrupted == true)
-        coords = nil
-    end
+    local zeppelinBench = CurrentInteraction and CurrentInteraction.zeppelinBench
     CurrentInteraction = nil
     StartingCoords = nil
     InteractionPed = nil
@@ -487,12 +484,28 @@ function StopInteraction(interrupted, cancelExternal)
         -- Death/other interruptions must preserve the new task and position.
         if not interrupted and not IsPlayerDead(ped) then
             ClearPedTasksImmediately(ped)
-            if coords then
+            if coords and not zeppelinBench then
                 SetEntityCoordsNoOffset(ped, coords.x, coords.y, coords.z)
             end
         end
     end
+    -- Erst die alte Möbelaufgabe beenden, dann den Zeppelinadapter zurückgeben.
+    -- Ein anschließendes ClearPedTasks würde dessen Deck-Warmup wieder lösen.
+    if zeppelinBench then
+        TriggerEvent("zata_Zeppelin:client:stopBenchInteraction", ped, interrupted == true)
+    end
 end
+
+AddEventHandler('zata_Zeppelin:client:benchInteractionEnded', function(ped)
+    if CurrentInteraction and CurrentInteraction.zeppelinBench and InteractionPed == ped then
+        -- Die Zeppelinseite hat bereits aufgeräumt oder an eine andere Steuerung
+        -- übergeben. Hier weder die neue Aufgabe noch Attach/Fokuszustand verändern.
+        CurrentInteraction = nil
+        StartingCoords = nil
+        InteractionPed = nil
+        SetPromptVisible(StopPrompt, false)
+    end
+end)
 
 function SetInteractionMarker(target)
 	InteractionMarker = target

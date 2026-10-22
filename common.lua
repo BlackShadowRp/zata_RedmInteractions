@@ -3,7 +3,8 @@ function IsPedChild(ped)
 end
 
 function IsPedAdult(ped)
-	return IsPedHuman(ped) and not IsPedChild(ped)
+	local human,child=IsPedHuman(ped),IsPedChild(ped)
+    return human~=false and human~=nil and human~=0 and (child==false or child==0)
 end
 
 function IsPedHumanMale(ped)

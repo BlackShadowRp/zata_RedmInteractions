@@ -135,3 +135,7 @@ GENERIC-Szenario darf auf einen anderen Punkt derselben Bank auflösen;
 `scenario=0` wird nicht als unbewiesener Fertig-Check verwendet. Normale Möbel
 behalten ihre bisherige Szenario-/Animationsprüfung. Beim Upstream-Update diesen
 Hook zusammen mit den Start-/Stop-/Ende-Hooks erhalten.
+
+## Batch: vollständige Featurebranch-Integration
+
+`upstream/explicit-interactions` bei `213ba17` ergänzt die Bett-/Schlafsack-Animationsvarianten. Die lokale Hausbadewanne und Sitzpositionen bleiben erhalten. Konflikt ausschließlich am Listenende von `config.lua`. Neue Varianten verwenden `IsPedAdult`; in `common.lua` wird dabei die native 0/1-Rückgabe korrekt ausgewertet. Git-Historien werden zusammengeführt, nicht durch Dateikopien ersetzt. Die Vorarbeit ist auf `backup/batch-20261022-bsdev` bei `197575a` gesichert.

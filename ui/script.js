@@ -1,201 +1,27 @@
-var currentInteractions = 0;
-var selectedIndex = 0;
-var maxItems = 50;
-
-function sendMessage(name, data) {
-	return fetch(`https://${GetParentResourceName()}/${name}`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify(data)
-	});
+'use strict';
+const picker=document.getElementById('interaction-picker'),list=document.getElementById('interaction-picker-list'),stage=document.getElementById('stage');
+let currentInteractions=[],selectedIndex=0,version=0,openVersion=0,enabled=false;
+const images=[],errors=[];
+const parts=['top_left','top','top_right','left','right','bottom_left','bottom','bottom_right'];
+const paths=[...['frames/main/dark','panels/heading/gold'].flatMap(f=>parts.map(p=>`https://cfx-nui-unbrokenassets/v1/${f}/${p}.webp`)),...['wood_dark','wood_blue_dark'].map(n=>`https://cfx-nui-unbrokenassets/v1/textures/${n}.webp`),'https://cfx-nui-unbrokenassets/v2/textures/leather_dark.webp',...['left','middle','right'].map(p=>`https://cfx-nui-unbrokenassets/v2/buttons/three_slice/gold/${p}.webp`)];
+function sendMessage(name,data={}){return fetch(`https://${GetParentResourceName()}/${name}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).catch(()=>({ok:false}));}
+const warmup=Promise.race([Promise.allSettled([...paths.map(path=>new Promise((resolve,reject)=>{const img=new Image();images.push(img);img.onload=()=>img.decode().then(resolve,reject);img.onerror=()=>{errors.push(path);reject(new Error(path))};img.src=path})),...['400 31px InteractionHeading','400 22px InteractionBody','500 22px InteractionBody','600 22px InteractionBody'].map(font=>document.fonts.load(font,'ÄÖÜ äöü ß'))]),new Promise(resolve=>setTimeout(()=>resolve(null),10000))]);
+const ready=warmup.then(async result=>{const settings=await sendMessage('uiReady');enabled=settings.enabled===true;window.interactionsReady=true;window.interactionsAssetErrors=errors;window.interactionsWarm=!!result;});
+function scale(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.left=`${(innerWidth-1920*s)/2}px`;stage.style.top=`${(innerHeight-1080*s)/2}px`;stage.style.transform=`scale(${s})`;}
+window.addEventListener('resize',scale);scale();
+function frame(node,family){const f=document.createElement('div');f.className=`frame ${family}`;f.setAttribute('aria-hidden','true');for(const p of parts){const i=document.createElement('i');i.className=p;f.append(i)}node.append(f);}
+frame(picker,'main');frame(picker.querySelector('header'),'heading');
+function hideInteractionPicker(){openVersion++;picker.hidden=true;currentInteractions=[];list.replaceChildren();}
+function closePicker(stop=false){hideInteractionPicker();sendMessage(stop?'stopInteraction':'closePicker',{version});}
+function setSelected(){const nodes=[...list.querySelectorAll('[role=option]')];if(!nodes.length)return;selectedIndex=(selectedIndex+nodes.length)%nodes.length;nodes.forEach((n,i)=>{n.classList.toggle('selected',i===selectedIndex);n.setAttribute('aria-selected',String(i===selectedIndex));n.tabIndex=i===selectedIndex?0:-1});const selected=nodes[selectedIndex];list.setAttribute('aria-activedescendant',selected.id);selected.scrollIntoView({block:'nearest'});sendMessage('setInteractionMarker',{selection:currentInteractions[selectedIndex]?.selection,version});}
+function startInteraction(){if(picker.hidden)return;const isCancel=selectedIndex===currentInteractions.length;const selection=currentInteractions[selectedIndex]?.selection;hideInteractionPicker();sendMessage(isCancel?'stopInteraction':'startInteraction',{selection,version});}
+async function showInteractionPicker(data){const generation=++openVersion;await ready;if(!enabled||generation!==openVersion)return;let interactions;try{interactions=typeof data.interactions==='string'?JSON.parse(data.interactions):data.interactions}catch{return}if(!Array.isArray(interactions))return;
+ currentInteractions=interactions.map((i,index)=>i&&typeof i==='object'?{...i,selection:index+1}:i).filter(i=>i&&typeof i==='object'&&(typeof i.scenario==='string'||i.animation&&typeof i.animation==='object'));version=data.version;selectedIndex=0;list.replaceChildren();
+ for(const [index,interaction]of currentInteractions.entries()){const button=document.createElement('button');button.type='button';button.className='interaction';button.id=`interaction-${index}`;button.setAttribute('role','option');const action=interaction.scenarioLabel||interaction.scenario||interaction.animationLabel||interaction.animation?.label||interaction.animation?.name||'Interaktion';const model=interaction.modelLabel||interaction.modelName;button.textContent=(model?model+': ':'')+action+(interaction.label?' ('+interaction.label+')':'');button.onclick=()=>{selectedIndex=index;startInteraction()};button.onpointermove=()=>{if(selectedIndex!==index){selectedIndex=index;setSelected()}};list.append(button)}
+ const cancel=document.createElement('button');cancel.type='button';cancel.className='interaction';cancel.id='interaction-stop';cancel.setAttribute('role','option');cancel.textContent='Nutzung beenden';cancel.onclick=()=>{selectedIndex=currentInteractions.length;startInteraction()};list.append(cancel);picker.hidden=false;setSelected();
 }
-
-function setSelected() {
-	var interactions = document.querySelectorAll('#interaction-picker-list .interaction');
-
-	for (var i = 0; i < interactions.length; ++i) {
-		if (i == selectedIndex) {
-			interactions[i].className = 'interaction selected';
-		} else {
-			interactions[i].className = 'interaction';
-		}
-	}
-
-	var interaction = interactions[selectedIndex];
-
-	if (interaction.hasAttribute('data-object')) {
-		var entity = parseInt(interaction.getAttribute('data-object'));
-
-		sendMessage('setInteractionMarker', {
-			entity: entity
-		});
-	} else {
-		var x = parseFloat(interaction.getAttribute('data-x'));
-		var y = parseFloat(interaction.getAttribute('data-y'));
-		var z = parseFloat(interaction.getAttribute('data-z'));
-
-		sendMessage('setInteractionMarker', {
-			x: x,
-			y: y,
-			z: z
-		});
-	}
-}
-
-function startInteraction() {
-	var interaction = document.querySelectorAll('#interaction-picker-list .interaction')[selectedIndex];
-
-	if (interaction.hasAttribute('data-cancel')) {
-		sendMessage('stopInteraction', {});
-	} else {
-		if (interaction.hasAttribute('data-scenario')) {
-			sendMessage('startInteraction', {
-				x: parseFloat(interaction.getAttribute('data-x')),
-				y: parseFloat(interaction.getAttribute('data-y')),
-				z: parseFloat(interaction.getAttribute('data-z')),
-				heading: parseFloat(interaction.getAttribute('data-heading')),
-				scenario: interaction.getAttribute('data-scenario'),
-				object: parseInt(interaction.getAttribute('data-object')),
-				effect: interaction.getAttribute('data-effect')
-			});
-		} else {
-			sendMessage('startInteraction', {
-				x: parseFloat(interaction.getAttribute('data-x')),
-				y: parseFloat(interaction.getAttribute('data-y')),
-				z: parseFloat(interaction.getAttribute('data-z')),
-				heading: parseFloat(interaction.getAttribute('data-heading')),
-				animation: {
-					dict: interaction.getAttribute('data-animation-dict'),
-					name: interaction.getAttribute('data-animation-name')
-				},
-				object: parseInt(interaction.getAttribute('data-object')),
-				effect: interaction.getAttribute('data-effect')
-			});
-		}
-	}
-
-	hideInteractionPicker();
-}
-
-function showInteractionPicker(data) {
-	var interactions = JSON.parse(data.interactions);
-
-	var list = document.querySelector('#interaction-picker-list');
-
-	list.innerHTML = '';
-
-	var max = interactions.length > maxItems ? maxItems : interactions.length;
-
-	for (var i = 0; i < max; ++i) {
-		var interaction = interactions[i];
-
-		var div = document.createElement('div');
-		div.className = 'interaction';
-
-		if (interaction.scenario) {
-			var scenarioLabel = interaction.scenarioLabel || interaction.scenario;
-			var modelLabel = interaction.modelLabel || interaction.modelName;
-
-			if (interaction.label) {
-				if (modelLabel) {
-					div.innerHTML = modelLabel + ': ' + scenarioLabel + ' (' + interaction.label + ')';
-				} else {
-					div.innerHTML = scenarioLabel + ' (' + interaction.label + ')';
-				}
-			} else {
-				if (modelLabel) {
-					div.innerHTML = modelLabel + ': ' + scenarioLabel;
-				} else {
-					div.innerHTML = scenarioLabel;
-				}
-			}
-		} else {
-			var animationLabel = interaction.animationLabel || interaction.animation.label;
-			var modelLabel = interaction.modelLabel || interaction.modelName;
-
-			if (interaction.label) {
-				if (modelLabel) {
-					div.innerHTML = modelLabel + ': ' + animationLabel + ' (' + interaction.label + ')';
-				} else {
-					div.innerHTML = animationLabel + ' (' + interaction.label + ')';
-				}
-			} else {
-				if (modelLabel) {
-					div.innerHTML = modelLabel + ': ' + animationLabel;
-				} else {
-					div.innerHTML = animationLabel;
-				}
-			}
-		}
-
-		div.setAttribute('data-x', interaction.x);
-		div.setAttribute('data-y', interaction.y);
-		div.setAttribute('data-z', interaction.z);
-		div.setAttribute('data-heading', interaction.heading);
-
-		if (interaction.scenario) {
-			div.setAttribute('data-scenario', interaction.scenario);
-		} else {
-			div.setAttribute('data-animation-dict', interaction.animation.dict);
-			div.setAttribute('data-animation-name', interaction.animation.name);
-		}
-
-		if (interaction.object) {
-			div.setAttribute('data-object', interaction.object);
-		}
-
-		if (interaction.effect) {
-			div.setAttribute('data-effect', interaction.effect);
-		}
-
-		list.appendChild(div);
-	}
-
-	var div = document.createElement('div');
-	div.className = 'interaction';
-	div.innerHTML = 'Nutzung beenden';
-	div.setAttribute('data-cancel', '');
-	list.appendChild(div);
-
-	currentInteractions = max + 1;
-	selectedIndex = 0;
-	setSelected();
-
-	document.querySelector('#interaction-picker').style.display = 'block';
-}
-
-function hideInteractionPicker() {
-	document.querySelector('#interaction-picker').style.display = 'none';
-}
-
-function moveSelectionDown() {
-	selectedIndex = (selectedIndex + 1) % currentInteractions;
-	setSelected();
-}
-
-function moveSelectionUp() {
-	selectedIndex = ((selectedIndex - 1) + currentInteractions) % currentInteractions;
-	setSelected();
-}
-
-window.addEventListener('message', function(event) {
-	switch (event.data.type) {
-		case 'showInteractionPicker':
-			showInteractionPicker(event.data);
-			break;
-		case 'hideInteractionPicker':
-			hideInteractionPicker(event.data);
-			break;
-		case 'moveSelectionUp':
-			moveSelectionUp();
-			break;
-		case 'moveSelectionDown':
-			moveSelectionDown();
-			break;
-		case 'startInteraction':
-			startInteraction();
-			break;
-	}
-});
+function moveSelectionDown(){if(!picker.hidden){selectedIndex++;setSelected()}}
+function moveSelectionUp(){if(!picker.hidden){selectedIndex--;setSelected()}}
+document.getElementById('close').onclick=()=>closePicker(false);
+document.addEventListener('keydown',event=>{if(picker.hidden)return;if(['ArrowUp','ArrowDown','Home','End','Enter','Escape'].includes(event.key)){event.preventDefault();if(event.key==='ArrowUp')moveSelectionUp();if(event.key==='ArrowDown')moveSelectionDown();if(event.key==='Home'){selectedIndex=0;setSelected()}if(event.key==='End'){selectedIndex=currentInteractions.length;setSelected()}if(event.key==='Enter')startInteraction();if(event.key==='Escape')closePicker(true)}});
+window.addEventListener('message',event=>{const data=event.data||{};switch(data.type){case 'showInteractionPicker':showInteractionPicker(data);break;case 'hideInteractionPicker':hideInteractionPicker();break;case 'moveSelectionUp':moveSelectionUp();break;case 'moveSelectionDown':moveSelectionDown();break;case 'startInteraction':startInteraction();break;}});

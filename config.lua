@@ -1,5 +1,17 @@
 Config = {}
 
+Config.Enabled = true
+Config.AdminAccess = {
+    AllowAdminAce = true, AdminAce = 'zata.admin',
+    AllowScriptAce = true, ScriptAce = 'zata.redminteractions',
+    Steam64Whitelist = {'76561198288053668'}, -- Zatarion; weitere IDs nur ausdrücklich ergänzen.
+    VorpCharacterGroups = {}, -- Zum Beispiel 'admin'; standardmäßig kein zusätzlicher Gruppenweg.
+}
+Config.Webhook = {
+    Url = 'http://127.0.0.1:50120/api/webhooks/zata_RedmInteractions',
+    Reports = {ReportPicker=true, ReportInteraction=true, ReportAdmin=true, ReportSecurity=true},
+}
+
 -- Control to start/stop interactions. Comment this out to disable the control.
 Config.InteractControl = `INPUT_GAME_MENU_DOWN` --`INPUT_GAME_MENU_TAB_LEFT_SECONDARY` -- Z
 

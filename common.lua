@@ -7,20 +7,24 @@ function IsPedAdult(ped)
     return human~=false and human~=nil and human~=0 and (child==false or child==0)
 end
 
+local function NativeTrue(value)return value~=nil and value~=false and value~=0 end
+
 function IsPedHumanMale(ped)
-	return IsPedHuman(ped) and IsPedMale(ped)
+    return NativeTrue(IsPedHuman(ped))and NativeTrue(IsPedMale(ped))
 end
 
 function IsPedHumanFemale(ped)
-	return IsPedHuman(ped) and not IsPedMale(ped)
+    local male=IsPedMale(ped)
+    return NativeTrue(IsPedHuman(ped))and (male==false or male==0)
 end
 
 function IsPedAdultMale(ped)
-	return not IsPedChild(ped) and IsPedMale(ped)
+    return IsPedAdult(ped)and NativeTrue(IsPedMale(ped))
 end
 
 function IsPedAdultFemale(ped)
-	return not IsPedChild(ped) and not IsPedMale(ped)
+    local male=IsPedMale(ped)
+    return IsPedAdult(ped)and (male==false or male==0)
 end
 
 GenericChairs = {

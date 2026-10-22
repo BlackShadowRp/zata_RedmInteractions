@@ -1,4 +1,13 @@
 local state = {}
+local network={}
+function RegisterNetEvent(name,fn)network[name]=fn end
+function TriggerServerEvent(name,id,kind)
+    if name=='zata_RedmInteractions:request'then network['zata_RedmInteractions:response'](id,true,'synthetic:1')end
+end
+function SetTimeout()end
+function SetNuiFocus()end
+function SetNuiFocusKeepInput()end
+
 local now=100
 local exportCalls=0
 local lightCalls=0
@@ -51,6 +60,7 @@ Config={InteractControl='down',StopControl='up',StopLabel='Aufstehen',Interactio
 local file=assert(io.open('client.lua'));local source=file:read('*a');file:close()
 source=source:gsub('`([^`]+)`','"%1"')
 assert(load(source,'@client.lua'))()
+callbacks.uiReady({},function()end)
 local actualNearby=IsInteractionNearby
 IsInteractionNearby=function() return true end
 IsPedUsingInteraction=function() return true end
@@ -107,7 +117,7 @@ state.featherOpen=nil;state.vorpOpen=true;frame();assert(heading==h,'Lightweight
 state.vorpOpen=nil;frame();assert(heading~=h,'Lightweight closed menus must allow rotation')
 assert(exportCalls==heavyBefore,'No full APIs may be transferred with adapters installed')
 state[0x25]=nil;state['feather-menu']=nil;state['vorp_menu']=nil
-commands.zata_interactionsturndebug();frame()
+commands.zata_redminteractions_turndebug();frame()
 assert(#prompts==2,'turning must not create prompts')
 local scans,coordsReads=0,0
 Config.Interactions={{objects={'a'}},{objects={'b'}},{objects={'c'}}}

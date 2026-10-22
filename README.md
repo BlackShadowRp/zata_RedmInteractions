@@ -1,157 +1,143 @@
 # zata_RedmInteractions
 
-Configurable interactions with objects or points on the map.
+Möbel- und Ortsinteraktionen für RedM. Pflege: **Zatarion**. Grundlage ist [kibooks redm-interactions](https://github.com/kibook/redm-interactions); vielen Dank an kibook für das ursprüngliche System. Die Umbenennung macht daraus keine vollständige Eigenentwicklung.
 
-## Herkunft und Dank an kibook
+## Überblick
 
-Diese Resource basiert auf **[kibooks redm-interactions](https://github.com/kibook/redm-interactions)**,
-Originalstand `02374f5eeed2f7bc1dd1137d4fc810518bfab2b0`.
-**Vielen Dank an kibook für die Grundlage und das originale Interaktionssystem!**
-Die Umbenennung ist keine vollständige Eigenentwicklung.
+Die Resource sucht passende Stühle, Bänke, Betten, Klaviere, Schlafgelegenheiten und konfigurierte Badeplätze in der Nähe. Spieler wählen eine passende Haltung oder Animation, stehen sofort wieder auf oder drehen sich im Stand mit gehaltenen Pfeiltasten.
 
-Aus dem Original übernommen:
+Die aktuelle Konfiguration enthält 75 Interaktionseinträge, darunter 28 aus dem zusätzlichen Upstream-Branch übernommene Bett-/Schlafsackvarianten. Die gemeinsamen Modelllisten umfassen 131 Stuhl- und 36 Bankmodelle. Nicht jede Haltung ist für jedes Spielfigurenmodell geeignet.
 
-- Objektsuche, Entfernungs- und Modellprüfungen, relative Koordinaten und
-  Ausrichtung sowie die grundlegenden Szenario-/Animationsaufrufe in `client.lua`.
-- Die ursprüngliche Möbel-/Szenariokonfiguration als Grundlage der erweiterten Liste.
-- `common.lua` unverändert mit den gemeinsamen Kompatibilitätsprüfungen.
-- Der NUI-Auswahlpicker mit HTML-/JavaScript-Grundgerüst. CSS und Schrift sind
-  unverändert; eigene UI-Anpassungen betreffen Übersetzungen und die Callback-Adresse.
-- Das Manifest-Grundgerüst und die Integration von kibooks `redm-uiprompt`.
+Eigene Ergänzungen erhalten deutsche Bezeichnungen, Schach- und Zeppelin-Anbindungen, sichere Eingabesperren, sanftes Drehen, Diagnosewerkzeuge und eine überarbeitete Auswahloberfläche.
 
-Von BlackShadowRP ergänzt oder verändert:
+## Voraussetzungen und Einstieg
 
-- Deutsche Szenario-, Objekt- und UI-Bezeichnungen sowie weitere Möbel und Betten.
-- Pfeil nach unten für die Auswahl und Sitzvariantenwechsel ohne vorheriges Aufstehen.
-- Zusätzlicher Pfeil-nach-oben-Prompt für sofortiges Aufstehen; Posewechsel erhalten
-  die ursprüngliche Rückkehrposition.
-- Abbrechen im Picker beendet auch native/externe Sitzaktionen, etwa über E,
-  sowie andere aktuelle Spieleranimationen sofort.
-- Lautloses Drehen auf gehaltenen Pfeiltasten mit einstellbarer Geschwindigkeit
-  und sanftem Anlauf, vollständig ohne Drehprompts.
-- Todes-, Mount-, Fahrzeug-, Bewegungs- und Aktionssperren sowie NUI-, Feather-
-  und VORP-Menüintegration und eine Schnittstelle für weitere eigene Sperren.
-- Bereinigung bei Tod, Unterbrechung und Resource-Stopp statt automatischem
-  Neustart unterbrochener Szenarien; normalisierte Boolean-/0-/1-Rückgaben.
-- Diagnosebefehle, Regressionstests und Dokumentation der eigenen Änderungen.
+Stelle dich in die konfigurierte Reichweite eines passenden Möbels oder Orts. Es werden keine Items, Berufe, Geldzahlungen oder Inventaränderungen benötigt. Allgemeine Spieleraktionen sind öffentlich, Diagnosebefehle sind dem Team vorbehalten.
 
-Die zentrale Clientsteuerung ist wesentlich erweitert, das Interaktionssystem
-bleibt eine Weiterentwicklung von kibooks Grundlage. Weitere Hinweise stehen
-in `UPGRADE_NOTES.md`. Das Original bleibt als Git-Remote `upstream` erhalten.
+Bei Tod, Mount-/Fahrzeugnutzung, Kampf, Fesseln, Sturz, Schwimmen, Pause oder blockierenden Menüs werden die normalen Interaktionsinputs gesperrt. Eine absichtlich deaktivierte Resource bietet keine Oberfläche oder Drehung an.
 
-Repository: https://github.com/BlackShadowRp/zata_RedmInteractions, Branch `master`.
-Resource-Pfad: `[zata]/zata_RedmInteractions`. Die NUI-Adresse wird dynamisch
-über `GetParentResourceName()` ermittelt. `/zata_interact` öffnet die Auswahl.
+Die 28 zusätzlichen intimen Bett-/Schlafsackposen werden ausschließlich erwachsenen menschlichen Spielfiguren angeboten. Modellabhängige Einschränkungen gelten außerdem für bestimmte Sitz-, Instrument- und Schlafhaltungen.
 
-# Requirements
+## Bedienung
 
-- [uiprompt](https://github.com/kibook/redm-uiprompt)
+**Pfeil nach unten** öffnet die Auswahl oder wechselt während einer bestehenden Haltung zur Posenauswahl. Alternativ `/zata_redminteractions_interact` verwenden. Die Öffnung wird vom Server freigegeben.
 
-# Install
+Im Picker mit Pfeil hoch/runter wählen, mit Eingabe starten. Home/End springen zum ersten/letzten Eintrag. Die gewählte Zeile scrollt sichtbar mit und markiert das zugehörige Ziel in der Welt. Mausauswahl ist ebenfalls möglich.
 
-1. Clone this repository into `[zata]/zata_RedmInteractions`.
+„Schließen“ schließt nur die Auswahl und gibt den Fokus frei. Escape beziehungsweise „Nutzung beenden“ beendet zusätzlich die bisherige Haltung oder native/externe Sitzanimation. Außerhalb des Pickers beendet **Pfeil nach oben** eine aktive eigene Interaktion sofort.
 
-2. Ensure the dependency `uiprompt` starts before this resource.
+**Pfeil links/rechts halten** dreht den stehenden Charakter ohne eigene Drehprompts. Beide Richtungen zusammen, Bewegung oder eine blockierende Aktion stoppen die Drehung sofort.
 
-3. Add `ensure zata_RedmInteractions` to the Zata section of `server.cfg` and remove the old resource entry. Do not start both names.
+## Funktionen und Abläufe
 
-## BS controls
+Die Suche prüft Interaktionsradius, Objektmodell und Figurenkompatibilität. Feste Badeplätze arbeiten mit Weltkoordinaten; Möbel verwenden relative Offsets und Ausrichtung. Die Auswahl wird lokal zwischengespeichert. Beim Bestätigen werden Eintrag, Version, Kompatibilität und Entfernung erneut geprüft; beliebige Browserkoordinaten werden nicht als Ziel übernommen.
 
-- Arrow Down: open the nearby furniture/interaction picker. Arrow keys select;
-  Enter starts the selected interaction, Escape cancels the current animation.
-- Arrow Up: immediately stop an active interaction and return to the starting
-  position. Both “Aufstehen” and “Nutzen” remain available while interacting.
-- Arrow Left/Right: silently turn while standing still (90 degrees per second, with a
-  configurable 0.2-second acceleration ramp).
-  Turning never registers or displays a prompt.
+Eine normale Interaktion merkt sich die ursprüngliche Position, stoppt alte Aufgaben und sperrt die Figur während der Haltung. Aufstehen stellt die Ausgangsposition wieder her. Ein Posenwechsel erhält die erste Rückkehrposition.
 
-Configure `InteractControl`, `StopControl`, `StopLabel` and `Turn` in `config.lua`.
-Set `Turn.enabled = false` to disable turning. A nil interaction/stop control
-turns off that binding and its prompt.
+Animationen haben eine begrenzte Ladezeit. Tod, Abbruch oder ein neuer Start verhindern, dass ein alter Ladevorgang später doch eine Animation aktiviert. Unterbrochene Haltungen werden nicht automatisch neu gestartet.
 
-Inputs are blocked during death, mounting/riding, vehicle use, combat,
-ragdoll/falling/climbing/swimming, restraint, pause, NUI focus and open Feather or
-VORP menus. Turning additionally requires standing still, enabled movement
-controls, no scenario, no attachment and no aiming/shooting. Custom menus or
-activities without focus/control locks must return true from
-`Config.IsInputBlocked`. There is no universal detector for arbitrary custom UI.
-Death hides both prompts every frame and releases this resource’s position lock
-without moving the character or clearing death tasks. Interrupted interactions
-are no longer restarted automatically.
+## Funktionen und Abläufe – Unterbrechung und Anbindungen
 
-Verify in RedM: left/right direction and speed; both keys together; WASD;
-furniture picker; immediate Arrow Up during entry/idle; death while sitting;
-horse mounting/riding; vehicles; Feather and VORP menus with and without cursor;
-resource stop during interaction. New code is developed on BSDev; deploy and
-restart on BS-Live separately.
+Tod, Figurenwechsel, Aufsitzen, Fahrzeuge, Fesseln oder Unterbrechungen lösen die eigene Positionssperre. Bei Tod oder fremder Übernahme werden weder neue Aufgaben gelöscht noch alte Weltpositionen wiederhergestellt.
 
-### Input diagnostics
+Erkannte Zeppelinbänke nutzen die vorhandenen Start-/Status-/Stop-Hooks von `zata_Zeppelin`. Ihre Haltung bewegt sich mit dem Rumpf; Aufstehen führt nicht zur alten festen Weltposition. Eine bereits übernommene Zeppelinsteuerung wird nicht nachträglich durch eine Aufgabenlöschung beschädigt.
 
-Run `/zata_interactionsdebug` and read F8 output to see the actual blocking reason,
-nearby interaction state and prompt state. Death detection uses the checks from
-`zata_Camps` (invalid ped, entity dead, dead/dying with both flags), normalizing
-numeric zero to false. Player-control locks block silent turning; they do not
-classify a living player as dead or independently hide the stop prompt.
-Failed optional menu exports log once and fall back to NUI focus and Feather/VORP
-open/close events instead of permanently hiding every furniture prompt. False
-entries in VORP's opened-menu table are ignored.
+Wenn `zata_Chess:blocksInteractions()` aktiv ist, übernehmen die Schachprompts. Ohne laufende optionale Integration bleiben normale Möbel nutzbar. Das Verhalten mit bewegten Bänken, Schachkamera und gleichzeitigen Menüs ist weiterhin im Spiel zu prüfen.
 
-Regression test: `lua tests/input_gates_test.lua` from this resource directory.
+## Funktionen und Abläufe – Eingaben und Leistung
 
-Turning inputs and blocking conditions are checked every rendered frame.
-`Turn.accelerationSeconds` controls the smooth start/reversal (0 disables the ramp).
-Releasing the keys or entering a blocked state stops rotation immediately.
-Stationary turning uses the speed threshold and rejects movement inputs; it does
-not depend on the potentially fluctuating `IsPedStill` state. Furniture proximity
-is scanned every 500 ms independently of turning.
+Die Drehung verwendet reale Framezeit, standardmäßig 90 Grad pro Sekunde und einen Anlauf von 0,2 Sekunden. Die gehaltenen Tastaturzustände umgehen unzuverlässige Wiederholimpulse der Spielmenütasten. Bei deaktivierten Bewegungscontrols, Zielen, Schießen, Anhängen, Szenarien oder tatsächlicher Bewegung wird nicht gedreht.
 
-While seated through this resource, Arrow Down remains available alongside
-Arrow Up to reopen the interaction picker and switch poses without standing up.
+Möbelsuche erfolgt alle 500 ms. Pro Suche werden Objekte nur einmal aufgezählt und ihre Positionen innerhalb derselben Suche wiederverwendet. Drehprüfungen laufen nur bei genau einer gehaltenen Richtung.
 
-Choosing Cancel in the picker also immediately clears native/external seating
-and other player animations. For external seating, the player stays at the
-current position. Turning movement axes use a 0.1 dead zone.
+Feather-/VORP-Menüzustände werden für höchstens 100 ms zwischengespeichert. Vor Auswahl- und Drehbeginn wird frisch geprüft. Leichte `zata_IsMenuOpen`-Exporte werden bevorzugt; fehlen sie, bleibt der bisherige Adapter erhalten. Das ist keine gemessene Zusage einer bestimmten Ingame-CPU-Ersparnis.
 
-For stationary turning diagnosis, run `/zata_interactionsturndebug`, close the
-console/chat, and hold each arrow key while standing. It logs for ten seconds
-at 500 ms intervals: the exact current turn-block reason, movement axes,
-normal/disabled key readings in input groups 0–2, and actual/last requested
-heading. Diagnostic logging is inactive by default and does not unlock controls.
+## Teamverwaltung
 
-Stationary turning reads held keyboard state using `Turn.leftRawKey` (0x25)
-and `Turn.rightRawKey` (0x27), avoiding game-menu repeat pulses resetting the
-acceleration ramp. Change the virtual key codes to rebind keyboard turning;
-set both to false to use only the configured game controls. Existing disabled
-control and menu/movement gates still apply; raw input creates no prompts.
+Es gibt keine Admin-NUI, Datenbankpflege oder Spielerinventarverwaltung. Zwei geschützte Diagnosebefehle zeigen im lokalen F8-Log Eingabesperren, Promptzustand und Drehwerte. Sie schalten keine blockierten Controls frei.
 
-### Menu polling performance
+Die ausführliche Drehdiagnose läuft nach Freigabe zehn Sekunden mit 500-ms-Abstand. Dabei Chat/Konsole schließen, im Stand beide Richtungen einzeln halten und auf den gemeldeten Blockgrund achten. Außerhalb des freigegebenen Fensters entstehen keine Dreh-Traces.
 
-Feather/VORP menu exports are polled at most every 100 ms during ordinary
-frames, sharing the resulting blocking reason with the rotation gate. Menu
-events and resource stops invalidate the snapshot. Interaction entry and the
-start of a turn explicitly refresh it. NUI focus, pause, death and physical
-blocking conditions remain frame-based. A menu without focus or a usable event
-can take up to 100 ms to stop an already ongoing turn.
+Serverseitige LogBridge-Meldungen dokumentieren die Freigabe der Diagnose. Die eigentlichen F8-Ausgaben bleiben lokal. Weitere Teamkonten und Gruppen wurden im Batch nicht freigeschaltet.
 
-Compare resource CPU in RedM while idle, turning, seated and opening menus;
-mocked tests verify reduced export frequency, not actual in-game CPU savings.
+## Befehle und Rechte
 
-Furniture proximity and picker searches now enumerate nearby objects once per
-search, reusing coordinates within that search. No object snapshot persists
-across searches; detection radius, compatibility checks and the 500-ms scan
-interval are unchanged. Regression coverage includes no-match scans, matches
-in later configuration entries and picker results, with enumeration/read counts.
+| Befehl | Zugang | Zweck |
+|---|---|---|
+| `/zata_redminteractions_interact` | Spieler | Auswahl naher Interaktionen |
+| `/zata_redminteractions_debug` | Admin | Eingabe-/Promptdiagnose in F8 |
+| `/zata_redminteractions_turndebug` | Admin | Zehn Sekunden Drehdiagnose |
 
-Rotation-specific eligibility checks now run only while exactly one turn key
-is held. Idle frames read only the two key states for rotation; disabled-control
-checks are deferred until a key is held. General furniture/input/death gating
-remains unchanged. Tests verify idle frames do not query rotation speed and
-held-key safety checks and smooth turning still pass.
+Die früheren Namen `zata_interact`, `zata_interactionsdebug` und `zata_interactionsturndebug` werden nicht als Aliase registriert. Spielerfunktionen erhalten keine Adminpflicht; Diagnosefreigaben werden serverseitig geprüft. Die Befehle sind für spielende Clients gedacht, nicht für die Serverkonsole.
 
-Menu CPU optimization: the BSDev Feather/VORP adapters expose
-`zata_IsMenuOpen`, returning only a boolean. The interaction resource prefers
-these exports instead of transferring entire registered menu/API tables.
-Restart feather-menu and vorp_menu before this resource to activate them.
-Missing adapters retain the original compatibility fallback, log once and
-retry after the provider stops. Adapter additions are documented in each
-provider resource UPGRADE_NOTES.md. Verify actual resmon savings in-game.
+Adminzugriff gilt alternativ über aktivierte `zata.admin`, aktivierte `zata.redminteractions`, die konfigurierte Steam64-Whitelist oder eine konfigurierte VORP-Charaktergruppe. Die Gruppenliste ist standardmäßig leer. Whitelistwerte sind Dezimalstrings, Steam-ACE-Identifier sind hexadezimal.
+
+## Befehle und Rechte – ACE-Beispiele
+
+```cfg
+add_ace group.zata_redminteractions zata.redminteractions allow
+add_principal identifier.license:<Spieler-Lizenz-ID> group.zata_redminteractions
+```
+
+Nur für einen einzelnen Account geht auch:
+
+```cfg
+add_ace identifier.license:<Spieler-Lizenz-ID> zata.redminteractions allow
+```
+
+Globale Admins können `add_ace group.admin zata.admin allow` verwenden. Platzhalter durch den tatsächlichen Identifier ersetzen. Eine VORP-Gruppe ist ein eigener Zugangsweg und keine ACE. Die produktive `server.cfg` enthält die Resourcegruppe und die vorhandene Zatarion-Zuordnung; vorbereitete Teamrollen bleiben kommentiert.
+
+## Hilfe und Grenzen
+
+Ohne passenden Eintrag, bei abgelaufener Auswahl oder einem entfernten Objekt die Auswahl schließen, neu zum Möbel stellen und erneut öffnen. Eine ungültige Auswahl darf weder eine fremde Position übernehmen noch einen unsichtbaren Fokus festhalten.
+
+Beliebige fremde Menüs ohne Fokus, Control-Sperre oder bekannte Ereignisse können nicht universell erkannt werden. Solche Integrationen gehören in `Config.IsInputBlocked`. Ein Menü ohne Fokus/Ereignis kann eine laufende Drehung bis zum nächsten 100-ms-Menüabgleich fortsetzen.
+
+Möbel haben keine globale Mehrspielerreservierung. Native Animationsabschlüsse sind Clientmeldungen; Logs kennzeichnen diese Grenze ausdrücklich. Die Auswahlvalidierung schützt den regulären NUI-Pfad, lokale Native-Effekte lassen sich gegen einen vollständig manipulierten Client damit nicht serverseitig erzwingen.
+
+Ingame-Abnahme für Drehung, NUI-Fokus, Fixed-size NUI, reale Animationsvarianten, Tod, Schach und Zeppelinbänke steht aus. Tests mit Stubs und Browserbildern ersetzen diese Prüfung nicht.
+
+## Installation und Abhängigkeiten
+
+Pflicht sind `uiprompt` aus kibooks redm-uiprompt und die gemeinsame Assetresource `unbrokenassets`. Beide vor `zata_RedmInteractions` starten. VORP ist ausschließlich für den optionalen Charaktergruppenweg und ergänzende Charakterdaten im Logging nutzbar; die Grundfunktion benötigt kein VORP-Inventar.
+
+Optional: `feather-menu`, `vorp_menu`, `zata_Chess` und `zata_Zeppelin`. Fehlende leichte Menüexports werden kompatibel abgefangen. Der Batch hat diese Abhängigkeiten weder geändert noch neu gestartet.
+
+Es gibt keine Itemdefinitionen, SQL-Seeds oder eigenen Datenbanktabellen. Itemabgleich, manuelle Item-SQL und automatische Schemamigrationen entfallen. Keine leeren SQL-Platzhalter importieren.
+
+## Konfiguration
+
+`Config.Enabled` aktiviert die Resource. `InteractControl`, `StopControl`, `StopLabel` und die vier `Menu*Control`-Werte bestimmen Eingaben. Native Prompts behalten ihre bisherige Standardschrift.
+
+`Config.Turn` enthält Richtungstasten, rohe Tastaturcodes, Geschwindigkeit, Anlauf und Bewegungsschwelle. Rohe Tasten auf `false` setzen, um nur konfigurierte Spielcontrols zu verwenden. `Config.IsInputBlocked` liefert `true`, wenn eine zusätzliche eigene Aktivität sperren soll.
+
+`Config.Interactions` legt Modelle, Radien, Welt-/Relativkoordinaten, Heading, Szenarien, Animationen, Kompatibilität und Effekte fest. `Config.Effects.clean` entfernt Verschmutzung, Blut und Decals der eigenen Figur. Namen von Natives, Modellen und Animationsbibliotheken nicht übersetzen; sichtbare Bezeichnungen liegen in den Übersetzungstabellen.
+
+## Daten und Schnittstellen
+
+Alles bleibt flüchtig: Picker-Auswahl, Sessiontoken, aktuelle Interaktion, Ausgangsposition, Menücache und Diagnosefenster. Disconnect oder Resource-Stopp beendet die jeweilige Sitzung. Es werden keine Inventare, Guthaben oder anderen Spielerbestände gelesen oder geändert.
+
+`server.lua` prüft Diagnoseberechtigungen, gibt öffentliche Auswahlöffnungen frei und nimmt ausschließlich begrenzte Auditereignisse mit passenden Sessiontoken und konfigurierten Aktionskennungen an. Spielerkennung und Koordinaten kommen vom Server. Ein Clientstart wird ausdrücklich als gemeldeter Start und nicht als bewiesener nativer Erfolg protokolliert.
+
+LogBridge verwendet den exakten Alias `zata_RedmInteractions`. Reportschalter trennen Picker, Interaktionen, Adminfreigaben und Sicherheit. Meldungen sind UTF-8-sicher begrenzt/geteilt, Mentions deaktiviert. Keine Tick-/Positionslogs, keine eigenen HTTP-Retries; Loggingfehler blockieren keine Spielerfunktion.
+
+## Betrieb und Wartung
+
+Im Batch wurden die relevanten Upstream-Historien und lokalen Änderungen integriert, auf GitHub gesichert und per Git auf beide Server übernommen. Sicherungsstand: `backup/batch-20261022-bsdev`. Details und Prüfergebnisse stehen in `BATCH_REPORT.md`; eigene Upstream-Anpassungen in `UPGRADE_NOTES.md`.
+
+Neue Manifestdateien, gemeinsame Abhängigkeit und Serverscript erfordern ein erneutes Einlesen. Vom Betreiber nach eigener Planung ausführen:
+
+```text
+refresh
+ensure zata_RedmInteractions
+```
+
+Der Batch hat diese Befehle nicht ausgeführt. Die notwendigen ACE-Blöcke wurden auf beiden Servern nur vorbereitet; ihre Änderungen liegen außerhalb des Resource-Repositories. Es fand keine Datenbankänderung statt.
+
+## Entwicklung und Prüfung
+
+`common.lua` enthält Modell-/Szenariolisten und Figurenprüfungen, `config.lua` die Interaktionen. `client.lua` verwaltet Eingaben, Auswahl und Lebenszyklus; `server.lua` Freigaben und LogBridge. `ui/` enthält den Picker mit 1920×1080-Designfläche, Shared-Slices, RDR Lino und Cormorant. Der frühere Chinese-Rocks-Font bleibt als Quelle erhalten, wird aber nicht mehr an Clients ausgeliefert.
+
+Vier Lua-Prüfungen: `tests/input_gates_test.lua`, `tests/picker_lifecycle_test.lua`, `tests/config_integration_test.lua`, `tests/server_access_logging_test.lua`. Jeweils mit `lua <Datei>` aus der Resource starten. Sie verwenden Native-, Netzwerk- und HTTP-Stubs.
+
+`node tests/ui_render.cjs` prüft den Picker in acht Größen mit Playwright und Sharp. Module, Browser und gemeinsame Assets sind per `PLAYWRIGHT_MODULE`, `SHARP_MODULE`, `BROWSER_EXECUTABLE` und `UNBROKEN_ASSETS` austauschbar. Verlustfreie Bilder und Index bleiben unter `tests/render-output/`, ignoriert und außerhalb der Clientpackliste. Unter Linux gegebenenfalls benötigte Browserbibliotheken über `LD_LIBRARY_PATH` bereitstellen.

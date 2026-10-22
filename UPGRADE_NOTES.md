@@ -1,141 +1,57 @@
-# zata_RedmInteractions: Änderungen an kibooks Grundlage
+# Eigene Änderungen an kibooks redm-interactions
 
-Baseline: BlackShadowRp master `51e7246`, including live bed positions and labels.
+## Herkunft und Vergleichsstände
 
-- `config.lua`: configurable silent stationary turning and separate immediate
-  stop control/label; custom input blocking hook.
-- `client.lua`: frame-based death/input gates; optional Feather/VORP menu checks;
-  separate stop prompt; frame-time-based turning; release interaction on death,
-  ped replacement, interruption or resource stop instead of restarting tasks.
-  Explicit stop restores the original position immediately; death preserves
-  position/tasks. Nearby furniture detection remains throttled to 500 ms.
-- `README.md`: bindings, integration limits and RedM verification checklist.
+Original: https://github.com/kibook/redm-interactions, Remote `upstream`. Das Organisationsrepository ist ein öffentliches Fork unter https://github.com/BlackShadowRp/zata_RedmInteractions, Arbeitsbranch `master`. Pflege: Zatarion. Dank und ursprüngliche Urheberschaft von kibook bleiben ausdrücklich erhalten.
 
-When updating upstream, preserve live furniture config and translations, and
-reconcile upstream interaction lifecycle with these gates. Syntax and mocked
-state tests cover prompt switching, rotation blocking and task cleanup. Actual
-RedM animation/native behavior and menu interactions require in-game checks.
+Geprüfter Original-Master: `02374f5eeed2f7bc1dd1137d4fc810518bfab2b0`. Bereits vorhandene eigene Basis laut Historie: BlackShadowRp `51e7246`, einschließlich angepasster Betten und Bezeichnungen. Lokaler Ausgangsstand des Batches: `09f90ac`; BS-Live hatte `4405284`. Die fünf nachfolgenden Commits betreffen Zeppelinbänke und Schachsperren, nicht einen neuen Hersteller-Release.
 
-Prompt regression follow-up: match `zata_Camps` death checks, normalize numeric
-native booleans, separate the player-control turning gate from furniture prompts,
-and handle optional menu export failures via logged event/focus fallback. Added
-`/zata_interactionsdebug` and `tests/input_gates_test.lua`. The original reported
-in-game blocking reason still requires the player's F8 diagnostic output.
+Ungesicherte Performancearbeit wurde in `197575a` auf `backup/batch-20261022-bsdev` erhalten. Vollständige Zusammenführung des Featurebranches `upstream/explicit-interactions` bei `213ba17` in Integrationscommit `2139b2c57b32ddd156257b061c33c2104899ac09`. Beide Upstreamspitzen sind als Vorfahren enthalten. Beim nächsten Update zunächst Master und relevante Featurebranches fetchen und die tatsächlichen Diffs prüfen; eigene Dateien nicht durch einen frischen Upstream-Checkout ersetzen.
 
-Stationary turning now ramps to the configured speed over
-`Turn.accelerationSeconds` (default 0.2 seconds), retaining immediate stop on
-release/block. Movement inputs and the existing speed threshold replace
-`IsPedStill` to avoid intermittent rotation gating. Verify smooth turns and
-menu/mount/movement cancellation in game; regression coverage is in
-`tests/input_gates_test.lua`.
+## Config, Modelle und Übersetzungen
 
-Keep the interaction prompt and Arrow Down picker binding available during
-active interactions, alongside the immediate Arrow Up stop binding. Pose
-switching retains the original return position; silent turning stays disabled
-while an interaction is active. Covered by `tests/input_gates_test.lua`.
+`config.lua` und `common.lua` erhalten eigene Bettpositionen einschließlich `p_bed01x`, `p_bed15brassx`, `p_bedking01x` sowie die konkrete Hausbadewanne. Der einzige Featurebranch-Konflikt lag am Listenende: Hausbadewanne behalten, alle 28 zusätzlichen Bett-/Schlafsackvarianten ergänzen. Die alte generische Badewanne nicht versehentlich über die lokale Hausposition zurücksetzen.
 
-Picker cancellation now clears the local player tasks even for native/external
-seating, without inventing a return position. Resource shutdown and interruption
-cleanup still only affect tracked interactions. Turning reads movement axes via
-`GetControlNormal` with a 0.1 dead zone and normalizes boolean/0/1 results
-for scenario, aiming, attachment and key gates. Verify native E seating cancel
-and stationary turns in game; input regression tests cover external cancel and
-numeric-zero scenario results.
+Neue intime Varianten sind an `IsPedAdult` gebunden. Die Figuren-/Geschlechtsprüfungen in `common.lua` und die Verwendung von Kompatibilitätsrückgaben in `client.lua` werten native Boolean-/0-/1-Werte korrekt aus; unbekannte Adult-Rückgaben geben die Varianten nicht frei. Die aktuelle Liste hat 75 Einträge, gemeinsame Modellgruppen enthalten 131 Stuhl- und 36 Bankmodelle.
 
-Added `/zata_interactionsturndebug` for ten-second client traces of turn blockers,
-input groups and actual/requested heading. Turn gating is centralized in
-`TurnBlockReason` without changing its conditions. This is diagnostic support
-for an unresolved in-game rotation failure; mocked tests alone cannot identify
-the live blocker or another resource overwriting the heading.
+`translations_scenarios.lua` und `translations_props.lua` enthalten deutsche Szenario-/Objektnamen. Badeanimationen und Seitenbezeichnungen besitzen nun tatsächliche Übersetzungen statt leerer Fallbacks. Technische Modell-, Animationsdict- und Szenariokennungen bleiben unverändert. Bei Upstream-Updates neue technische Schlüssel hinzufügen, sichtbare Namen separat übersetzen.
 
-Use `IsRawKeyDown` for configured arrow virtual keys to keep rotation active
-while held, independent of menu-control repeat pulses. Preserve disabled
-control checks and all turn-block conditions. Debug traces now include the
-resolved held state. Regression tests simulate a held raw key with intermittent
-menu-control pulses, full-speed rotation, release, both keys and blocked input.
-In-game confirmation remains required.
+## Eingaben, Drehung und Lebenszyklus
 
-Performance: cache only the Feather/VORP menu blocking reason for 100 ms,
-invalidate on menu events/resource stops and refresh on interaction/turn entry.
-Reuse the frame input result for the turn gate rather than checking it twice.
-Fast death, NUI, pause and physical checks remain uncached. Regression tests
-count export calls within/across the cache interval and verify fresh turn entry
-with a newly opened menu. Confirm actual resmon/profiler savings and menu/death
-behavior on BSDev before live deployment.
+`client.lua` ergänzt getrennte Pfeil-nach-unten-Auswahl und sofortiges Pfeil-nach-oben-Aufstehen, lautloses Links-/Rechts-Drehen mit Framezeit, Geschwindigkeit, Beschleunigung und rohem gehaltenem Tastaturzustand. Beide Tasten zusammen, Bewegung, deaktivierte Controls, Mount/Fahrzeuge, Kampf, Tod, Fesseln, Szenarien und blockierende Menüs stoppen die Drehung. Es entstehen keine Drehprompts.
 
-Furniture proximity and picker searches now enumerate nearby objects once per
-search, reusing coordinates within that search. No object snapshot persists
-across searches; detection radius, compatibility checks and the 500-ms scan
-interval are unchanged. Regression coverage includes no-match scans, matches
-in later configuration entries and picker results, with enumeration/read counts.
+Picker und aktive Haltung sind getrennt. Posenwechsel behalten die erste Rückkehrposition. Normales Aufstehen stellt diese wieder her; Tod oder externe Übernahme lösen nur die eigene Sperre und dürfen neue Aufgaben/Positionen nicht zerstören. Unterbrochene Haltungen werden nicht automatisch neu gestartet. Escape/Nutzung beenden kann auch eine native/externe Sitzanimation lösen; „Schließen“ schließt nur den Picker.
 
-Rotation-specific eligibility checks now run only while exactly one turn key
-is held. Idle frames read only the two key states for rotation; disabled-control
-checks are deferred until a key is held. General furniture/input/death gating
-remains unchanged. Tests verify idle frames do not query rotation speed and
-held-key safety checks and smooth turning still pass.
+Animationsladen ist auf fünf Sekunden begrenzt und durch Generationen gegen verspäteten Start nach Stop/Abbruch geschützt. Ungültige, veraltete, entfernte oder inkompatible NUI-Auswahlen schließen sicher und geben den eigenen Fokus frei. Browserkoordinaten und frei übermittelte Animationsnamen ersetzen keine zuvor ermittelte Auswahl.
 
-Menu CPU optimization: the BSDev Feather/VORP adapters expose
-`zata_IsMenuOpen`, returning only a boolean. The interaction resource prefers
-these exports instead of transferring entire registered menu/API tables.
-Restart feather-menu and vorp_menu before this resource to activate them.
-Missing adapters retain the original compatibility fallback, log once and
-retry after the provider stops. Adapter additions are documented in each
-provider resource UPGRADE_NOTES.md. Verify actual resmon savings in-game.
+## Menüadapter und Suchkosten
 
-## Mitbewegte Zeppelinbänke
+Menüabfragen verwenden bevorzugt `zata_IsMenuOpen` von Feather/VORP und andernfalls die bisherigen API-Adapter. Fehlende leichte Exporte werden bis zum nächsten Provider-Stopp nicht ständig erneut versucht. Ereignisse und Provider-Stopp invalidieren den 100-ms-Cache, Interaktions-/Drehbeginn prüft frisch. NUI-Fokus und schnelle physische Sperren bleiben framebezogen; eigener Picker-Fokus wird gezielt ausgenommen.
 
-`StartInteractionAtObject` bietet vor der Umrechnung in Weltkoordinaten den
-synchronen Hook `zata_Zeppelin:client:startBenchInteraction` an. Erkannte
-Zeppelinbänke mit Szenario werden vollständig von der Zeppelinseite gestartet:
-`CREATE_SCENARIO_POINT_HASH_ATTACHED_TO_ENTITY` bindet den Sitzpunkt an die echte
-Bank, `TASK_USE_SCENARIO_POINT` startet ausschließlich diesen Punkt. Es gibt für
-Szenariositze keinen parallelen Welt-Szenariostart, Ped-Attach oder laufenden
-Ped-/Szenariopunktteleport. Fehlende Bindung und Eintrittsfehler werden beendet;
-es wird kein zweiter Bewegungsmechanismus zugeschaltet.
+Möbelsuche alle 500 ms, genau eine Objektenumeration und pro Objekt eine Positionslesung je Suche. Keine veralteten Snapshots zwischen Suchen. Aufwendige Drehprüfungen nur bei genau einer gehaltenen Richtung. Die Tests belegen Aufrufzahlen und Sperren; echte CPU-Ersparnis mit resmon/Profiler im Spiel messen. Provideranpassungen wurden innerhalb dieses Batches nicht übertragen.
 
-Normale Möbel behalten ihren bisherigen Start. Reine Animationen ohne Szenario
-behalten ebenfalls `StartInteractionAtCoords`; nur für erkannte Zeppelinbänke
-meldet der anschließende Hook `benchInteractionStarted` die Animation an einem
-eigenen Ped-Transformpfad an. Der Nachstart-Hook läuft nur, wenn der normale
-Start tatsächlich die aktuelle Interaktion gesetzt hat.
+## Zeppelin und Schach
 
-Zeppelininteraktionen markieren `zeppelinBench` und verlassen die Rückkehr zur
-alten Weltposition. Beim Aufstehen beendet `StopInteraction` die alte Aufgabe
-vor dem Zeppelin-Stop-Hook, damit dessen Deck-Warmup nicht nachträglich durch
-`ClearPedTasksImmediately` gelöst wird. Der zusätzliche lokale Hook
-`zata_Zeppelin:client:benchInteractionEnded` entfernt nach einem selbst erkannten
-Abbruch ausschließlich den Adapterzustand, ohne neue Aufgaben, Attach-Verbindungen
-oder Positionen anzutasten. Stop-, Status-, Vorstart-, Nachstart- und Ende-Hook
-bei Upstream-Updates gemeinsam erhalten.
+`StartInteractionAtObject` fragt `zata_Zeppelin:client:startBenchInteraction` vor der Weltkoordinatenumrechnung. Erkennt der Adapter die Bank, darf nur dessen bestätigter Start die Interaktion übernehmen. Für normale Möbel bleibt der bisherige Start erhalten; anschließend kann `benchInteractionStarted` eine erkannte mitbewegte Bank übernehmen. Der Nachstart-Hook läuft nur bei tatsächlich gesetzter aktueller Interaktion.
 
-`zata_Zeppelin/tests/bench_attachment_test.lua` prüft vollständige Signaturen,
-Bankbindung, genau einen Bewegungspfad, kleine Park-/Flugschritte, Ein-/Ausstieg,
-Timeout, Punkt-/Bankverlust, fremde Aufgaben, Teleport, Tod, Pedwechsel und
-Resource-Stopp. Der Test simuliert keine native Sitzphysik. Native RedM-Mitnahme
-und Ped-/Szenariosynchronisierung auf mehreren Clients sind im Spiel zu prüfen.
-Die allgemeinen Eingaben prüft `tests/input_gates_test.lua`.
+Zeppelininteraktionen sind mit `zeppelinBench` markiert und kehren nicht an eine alte feste Weltposition zurück. Eigene Aufgaben werden vor dem Stop-Hook beendet, damit dessen Deck-Warmup nicht durch nachträgliches `ClearPedTasksImmediately` gelöst wird. `benchInteractionEnded` räumt nur den eigenen Zustand auf. `benchInteractionActive` fragt die lokale Sitzverwaltung ab und berücksichtigt die begrenzte Eintrittsphase; ein generisches Szenario darf zu einem anderen Punkt derselben Bank auflösen.
 
-## Schachtische von zata_Chess
+`zata_Chess:blocksInteractions()` blendet eigene Möbelprompts während Platzierung, Sitz und Brettkamera aus. Fehlt Resource oder Export, bleibt die normale Funktion erhalten. Bei einem Upstream-Update alle fünf Zeppelin-Hooks und den Schachexport zusammen prüfen.
 
-`client.lua` fragt vor den allgemeinen Eingaben den optionalen Client-Export
-`exports.zata_Chess:blocksInteractions()` ab. Nur am Schachtisch oder während
-seiner Platzierung/Sitzung blendet redm-interactions seine eigenen Prompts aus.
-Fehlt die Resource oder der Export, bleibt das bisherige Verhalten erhalten.
-Prüfung: Schach-Hocker mit B, Brettkamera mit G, Aufstehen mit B; außerhalb
-bleiben normale Möbelinteraktionen verfügbar. Kein NUI-Fokus wird dafür erzwungen.
+## NUI, Freigaben und Logging
 
-## Sitzstatus bewegter Zeppelinbänke
+`ui/` verwendet eine zentrale 1920×1080-Designfläche, proportionale Skalierung, transparenten unsichtbaren Start, RDR Lino/Cormorant und Shared-Rahmen/-Materialien. Einzelne Listenzeilen bleiben ohne Zwischenraum. Der Auswahlrahmen scrollt nicht mit. Alle ermittelten Zeilen bleiben erreichbar; die frühere stille Beschränkung auf 50 entfällt. Beschriftungen werden als Text eingefügt, nicht als ausführbares HTML.
 
-Der Möbel-Watchdog fragt für `zeppelinBench` synchron den lokalen Hook
-`zata_Zeppelin:client:benchInteractionActive` ab. Die Zeppelinseite hält damit
-auch die begrenzte Eintrittsphase exklusiv und
-prüft anschließend den tatsächlich verwendeten bankgebundenen Punkt. Ein
-GENERIC-Szenario darf auf einen anderen Punkt derselben Bank auflösen;
-`scenario=0` wird nicht als unbewiesener Fertig-Check verwendet. Normale Möbel
-behalten ihre bisherige Szenario-/Animationsprüfung. Beim Upstream-Update diesen
-Hook zusammen mit den Start-/Stop-/Ende-Hooks erhalten.
+`client.lua` hält pro Öffnung die tatsächliche Auswahl und eine Version. `server.lua` gibt öffentliche Öffnungen sowie geschützte Diagnosen frei. Diagnose-Commands haben das vollständige Präfix `zata_redminteractions`; alte Aliase entfallen. Admin-ACE, Script-ACE, Steam64 und optionale aktuelle VORP-Charaktergruppe sind getrennte ODER-Wege.
 
-## Batch: vollständige Featurebranch-Integration
+Shared-Config und neues Serverscript stehen im Manifest, `uiprompt`/`unbrokenassets` sind Pflichtabhängigkeiten. Alte lokale Schrift nicht mehr ausliefern. Das neue Manifest erfordert `refresh` vor `ensure zata_RedmInteractions`.
 
-`upstream/explicit-interactions` bei `213ba17` ergänzt die Bett-/Schlafsack-Animationsvarianten. Die lokale Hausbadewanne und Sitzpositionen bleiben erhalten. Konflikt ausschließlich am Listenende von `config.lua`. Neue Varianten verwenden `IsPedAdult`; in `common.lua` wird dabei die native 0/1-Rückgabe korrekt ausgewertet. Git-Historien werden zusammengeführt, nicht durch Dateikopien ersetzt. Die Vorarbeit ist auf `backup/batch-20261022-bsdev` bei `197575a` gesichert.
+LogBridge erhält Picker-Lebenszyklus, konfigurierte gemeldete Interaktionsstarts/-fehler/-enden, Diagnosefreigaben/-ablehnungen sowie Disconnect/Stopp. Native Clientwirkungen werden nicht als serverseitig bewiesen dargestellt. Identität/Koordinaten kommen vom Server; UTF-8-Aufteilung, Audit-ID, Reportschalter, gesperrte Mentions und nicht blockierende HTTP-Fehler erhalten. Kein Item- oder Datenbanksystem hinzufügen: Diese Resource hat keine entsprechenden Definitionen oder Migrationen.
+
+## Wiederholbare Prüfungen
+
+Vier Lua-Prüfungen unter `tests/`: Eingabesperren/Drehung/Adapter und Aufrufzahlen; Picker-Lebenszyklus mit Fokus, Auswahlvalidierung und Ladeabbruch; vollständige Featurebranch-Konfiguration und native Rückgaben; zentrale Rechte, Sessiontoken, Auditkennungen und HTTP-/Unicodegrenzen. Netzwerk, Natives und HTTP sind dabei gestubbt.
+
+`tests/ui_render.cjs` rendert 120 verlustfreie WebPs in den acht vereinbarten Auflösungen. Ausgabe lokal unter `tests/render-output/`, nie committen oder packen. Dokumentierter Assetabgleich: 24 benötigte Shared-Dateien auf beiden Servern bytegleich.
+
+Weiter im Spiel prüfen: Fixed-size NUI an/aus, Pfeile und Maus, Fokusfreigabe, Tod während der Haltung, reale Animationsdictionaries, Schach und bewegte Zeppelinbänke, weitere Menüs sowie tatsächliche resmon-Kosten. Frühere Berichte über Drehblockaden sind ohne neue F8-/Ingame-Beobachtung keine neu bestätigte Diagnose. Vollständiger Batchnachweis: `BATCH_REPORT.md`.

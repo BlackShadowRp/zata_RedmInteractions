@@ -10,6 +10,33 @@ local MaxRadius = 0.0
 local TurnDebugUntil = 0
 local TurnDebugNext = 0
 local TurnDebugTarget
+local AvailablePicker={}
+local PickerVersion=0
+local AuthToken
+local PendingPermissions={}
+local RequestSequence=0
+local InteractionGeneration=0
+local UIReady=false
+local PickerRequestPending=false
+local PickerExpires=0
+
+local function RequestPermission(kind,callback)
+    if Config.Enabled==false then return end
+    RequestSequence=(RequestSequence%2147483647)+1
+    local id=RequestSequence
+    PendingPermissions[id]=callback
+    TriggerServerEvent('zata_RedmInteractions:request',id,kind)
+    SetTimeout(5000,function()local pending=PendingPermissions[id];PendingPermissions[id]=nil;if pending then pending(false)end end)
+end
+RegisterNetEvent('zata_RedmInteractions:response',function(id,allowed,token)
+    local callback=PendingPermissions[id];PendingPermissions[id]=nil
+    if callback and Config.Enabled~=false then callback(allowed==true,token)end
+end)
+local function Audit(action,entry)
+    if not AuthToken then return end
+    local key=entry and (entry.scenario and 'scenario:'..entry.scenario or entry.animation and 'animation:'..entry.animation.dict..':'..entry.animation.name)
+    TriggerServerEvent('zata_RedmInteractions:audit',AuthToken,action,key and {key=key}or {})
+end
 
 local InteractPrompt = Config.InteractControl and Uiprompt:new(Config.InteractControl, "Nutzen", nil, false)
 local StopPrompt = Config.StopControl and Uiprompt:new(Config.StopControl, Config.StopLabel, nil, false)
@@ -46,7 +73,7 @@ end)
 local function WarnMenuFailure(resource, result)
     if MenuWarnings[resource] then return end
     MenuWarnings[resource] = true
-    print(("[zata_RedmInteractions] %s-Menueabfrage fehlgeschlagen: %s; nutze NUI-Fokus und Menue-Ereignisse.")
+    print(("[zata_RedmInteractions] %s-Menüabfrage fehlgeschlagen: %s; nutze NUI-Fokus und Menü-Ereignisse.")
         :format(resource, tostring(result)))
 end
 
@@ -58,7 +85,7 @@ local function LightweightMenuState(resource)
         return AsBoolean(open)
     end
     LightweightMenus[resource] = false
-    print(("[zata_RedmInteractions] %s: leichter Menue-Export fehlt; bisheriger Adapter bleibt aktiv bis zum Menue-Resource-Neustart."):format(resource))
+    print(("[zata_RedmInteractions] %s: leichter Menü-Export fehlt; bisheriger Adapter bleibt aktiv bis zum Menü-Resource-Neustart."):format(resource))
 end
 
 local function QueryMenuBlockReason()
@@ -102,7 +129,7 @@ local function ExternalInputBlockReason(forceRefresh)
         local ok, blocked = pcall(function() return exports.zata_Chess:blocksInteractions() end)
         if ok and blocked == true then return "chess" end
     end
-    if AsBoolean(IsNuiFocused()) then return "nui_focus" end
+    if AsBoolean(IsNuiFocused())and not PickerIsOpen then return "nui_focus" end
     if AsBoolean(IsPauseMenuActive()) then return "pause_menu" end
     local now = GetGameTimer()
     if forceRefresh or now >= MenuCacheUntil then
@@ -114,6 +141,7 @@ local function ExternalInputBlockReason(forceRefresh)
 end
 
 local function InputBlockReason(ped, forceRefresh)
+    if Config.Enabled==false then return "resource_disabled" end
     if IsPlayerDead(ped) then return "dead_or_invalid_ped" end
     if AsBoolean(IsPedOnMount(ped)) then return "mounted" end
     if AsBoolean(IsPedEnteringAnyTransport(ped)) then return "entering_transport" end
@@ -180,7 +208,7 @@ local function TraceTurning(ped)
     print(("[zata_RedmInteractions turn] block=%s speed=%.3f axes=%.3f/%.3f heading=%.3f lastTarget=%s held=%s/%s %s")
         :format(TurnBlockReason(ped) or "none", GetEntitySpeed(ped),
             GetControlNormal(0, `INPUT_MOVE_LR`), GetControlNormal(0, `INPUT_MOVE_UD`),
-            GetEntityHeading(ped), tostring(TurnDebugTarget), tostring(TurnKeyDown("left")),
+            GetEntityHeading(ped), (TurnDebugTarget and ("%.3f"):format(TurnDebugTarget)or "nil"), tostring(TurnKeyDown("left")),
             tostring(TurnKeyDown("right")), table.concat(keys, " ")))
 end
 
@@ -191,6 +219,12 @@ local function SetPromptVisible(prompt, visible)
 end
 
 local function ClosePicker()
+    if PickerIsOpen then
+        Audit('pickerClosed')
+        SetNuiFocus(false,false)
+        if SetNuiFocusKeepInput then SetNuiFocusKeepInput(false)end
+    end
+    AvailablePicker={}
     SendNUIMessage({type = "hideInteractionPicker"})
     InteractionMarker = nil
     PickerIsOpen = false
@@ -243,29 +277,32 @@ function CanStartInteractionAtObject(interaction, object, playerCoords, objectCo
 	return HasCompatibleModel(object, interaction.objects)
 end
 
-function PlayAnimation(ped, anim)
+function PlayAnimation(ped, anim, generation)
 	if not DoesAnimDictExist(anim.dict) then
-		print("Invalid animation: " .. anim.dict)
-		return
+		print("Ungültige Animation: " .. anim.dict)
+		return false
 	end
 
 	RequestAnimDict(anim.dict)
     local deadline = GetGameTimer() + 5000
     while not HasAnimDictLoaded(anim.dict) do
-        if GetGameTimer() > deadline or ped ~= PlayerPedId() or IsPlayerDead(ped) then
+        if GetGameTimer() > deadline or ped ~= PlayerPedId() or not CanUseInputs(ped)or generation~=InteractionGeneration then
             RemoveAnimDict(anim.dict)
-            return
+            return false
         end
         Citizen.Wait(0)
     end
-    if ped ~= PlayerPedId() or IsPlayerDead(ped) then return end
+    if ped ~= PlayerPedId() or not CanUseInputs(ped)or generation~=InteractionGeneration then RemoveAnimDict(anim.dict);return false end
 
 	TaskPlayAnim(ped, anim.dict, anim.name, 0.0, 0.0, -1, 1, 1.0, false, false, false, "", false)
 
 	RemoveAnimDict(anim.dict)
+    return true
 end
 
 function StartInteractionAtCoords(interaction)
+    InteractionGeneration=InteractionGeneration+1
+    local generation=InteractionGeneration
 	local x = interaction.x
 	local y = interaction.y
 	local z = interaction.z
@@ -289,14 +326,22 @@ function StartInteractionAtCoords(interaction)
 	elseif interaction.animation then
 		SetEntityCoordsNoOffset(ped, x, y, z)
 		SetEntityHeading(ped, h)
-		PlayAnimation(ped, interaction.animation)
+        if not PlayAnimation(ped,interaction.animation,generation)then
+            if generation==InteractionGeneration then
+                Audit('failed',interaction)
+                StopInteraction(true)
+            end
+            return false
+        end
 	end
 
 	if interaction.effect then
-		Config.Effects[interaction.effect]()
+		if Config.Effects[interaction.effect]then Config.Effects[interaction.effect]()end
 	end
 
 	CurrentInteraction = interaction
+    Audit("start",interaction)
+    return true
 end
 
 function StartInteractionAtObject(interaction)
@@ -315,6 +360,7 @@ function StartInteractionAtObject(interaction)
             StartingCoords = nil
             CurrentInteraction = interaction
             CurrentInteraction.zeppelinBench = true
+            Audit("start",interaction)
         end
         return
     end
@@ -347,7 +393,7 @@ function StartInteractionAtObject(interaction)
 end
 
 function IsCompatible(t, ped)
-	return not t.isCompatible or t.isCompatible(ped)
+	return not t.isCompatible or AsBoolean(t.isCompatible(ped))
 end
 
 function GetTranslatedLabel(translations, key, fallback)
@@ -397,20 +443,21 @@ function SortInteractions(a, b)
 			local bLabel = b.scenarioLabel or b.scenario or b.animationLabel or b.animation.label
 			return aLabel < bLabel
 		else
-			return a.object < b.object
+			return tostring(a.object or "") < tostring(b.object or "")
 		end
 	else
 		return a.distance < b.distance
 	end
 end
 
-function AddInteractions(availableInteractions, interaction, playerPed, playerCoords, targetCoords, modelName, object)
+function AddInteractions(availableInteractions, interaction, playerPed, playerCoords, targetCoords, modelName, object, definition)
 	local distance = #(playerCoords - targetCoords)
 
 	if interaction.scenarios then
 		for _, scenario in ipairs(interaction.scenarios) do
 			if IsCompatible(scenario, playerPed) then
 				table.insert(availableInteractions, {
+					definition = definition,
 					x = interaction.x,
 					y = interaction.y,
 					z = interaction.z,
@@ -432,6 +479,7 @@ function AddInteractions(availableInteractions, interaction, playerPed, playerCo
 		for _, animation in ipairs(interaction.animations) do
 			if IsCompatible(animation, playerPed) then
 				table.insert(availableInteractions, {
+					definition = definition,
 					x = interaction.x,
 					y = interaction.y,
 					z = interaction.z,
@@ -457,7 +505,7 @@ function GetAvailableInteractions()
     local nearbyObjects
     local objectCoordsCache = {}
 
-	for _, interaction in ipairs(Config.Interactions) do
+	for definition, interaction in ipairs(Config.Interactions) do
 		if IsCompatible(interaction, playerPed) then
 			if interaction.objects then
 				nearbyObjects = nearbyObjects or GetNearbyObjects(playerCoords)
@@ -471,14 +519,14 @@ function GetAvailableInteractions()
 					local modelName = CanStartInteractionAtObject(interaction, object, playerCoords, objectCoords)
 
 					if modelName then
-						AddInteractions(availableInteractions, interaction, playerPed, playerCoords, objectCoords, modelName, object)
+						AddInteractions(availableInteractions, interaction, playerPed, playerCoords, objectCoords, modelName, object, definition)
 					end
 				end
 			else
 				local targetCoords = vector3(interaction.x, interaction.y, interaction.z)
 
 				if #(playerCoords - targetCoords) <= interaction.radius then
-					AddInteractions(availableInteractions, interaction, playerPed, playerCoords, targetCoords)
+					AddInteractions(availableInteractions, interaction, playerPed, playerCoords, targetCoords, nil, nil, definition)
 				end
 			end
 		end
@@ -490,29 +538,27 @@ function GetAvailableInteractions()
 end
 
 function StartInteraction()
-	if PickerIsOpen or not CanUseInputs(PlayerPedId(), true) then return end
-	local availableInteractions = GetAvailableInteractions()
-
-	if #availableInteractions > 0 then
-		SendNUIMessage({
-			type = "showInteractionPicker",
-			interactions = json.encode(availableInteractions)
-		})
-		PickerIsOpen = true
-	else
-		SendNUIMessage({
-			type = "hideInteractionPicker"
-		})
-		SetInteractionMarker()
-		PickerIsOpen = false
-
-		if CurrentInteraction then
-			StopInteraction()
-		end
-	end
+    if not UIReady or PickerIsOpen or PickerRequestPending or not CanUseInputs(PlayerPedId(),true)then return end
+    PickerRequestPending=true
+    RequestPermission('picker',function(allowed,token)
+        PickerRequestPending=false
+        if not allowed or type(token)~='string'or PickerIsOpen or not CanUseInputs(PlayerPedId(),true)then return end
+        local available=GetAvailableInteractions()
+        if #available==0 then
+            if CurrentInteraction then StopInteraction()end
+            return
+        end
+        AuthToken=token;PickerExpires=GetGameTimer()+300000;AvailablePicker=available;PickerVersion=PickerVersion+1;PickerIsOpen=true
+        SetNuiFocus(true,true)
+        if SetNuiFocusKeepInput then SetNuiFocusKeepInput(false)end
+        SendNUIMessage({type='showInteractionPicker',interactions=json.encode(available),version=PickerVersion})
+        Audit('pickerOpened')
+    end)
 end
 
 function StopInteraction(interrupted, cancelExternal)
+    InteractionGeneration=InteractionGeneration+1
+    if CurrentInteraction then Audit("stop",CurrentInteraction)end
     local ped = InteractionPed or (cancelExternal and PlayerPedId())
     local coords = StartingCoords
     local zeppelinBench = CurrentInteraction and CurrentInteraction.zeppelinBench
@@ -557,6 +603,7 @@ function DrawInteractionMarker()
 	local x, y, z
 
 	if type(InteractionMarker) == "number" then
+        if not DoesEntityExist(InteractionMarker)then InteractionMarker=nil;return end
 		x, y, z = table.unpack(GetEntityCoords(InteractionMarker))
 	else
 		x, y, z = table.unpack(InteractionMarker)
@@ -615,32 +662,38 @@ function IsInteractionNearby(playerPed)
 	return false
 end
 
-RegisterNUICallback("startInteraction", function(data, cb)
-	if data.object then
-		StartInteractionAtObject(data)
-	else
-		StartInteractionAtCoords(data)
-	end
-	cb({})
+local function SelectedEntry(data)
+    if not PickerIsOpen or GetGameTimer()>PickerExpires or type(data)~='table'or data.version~=PickerVersion then return end
+    local index=tonumber(data.selection)
+    if not index or index%1~=0 then return end
+    return AvailablePicker[index]
+end
+RegisterNUICallback('uiReady',function(_,cb)UIReady=true;cb({enabled=Config.Enabled~=false})end)
+RegisterNUICallback('closePicker',function(_,cb)ClosePicker();cb({ok=true})end)
+RegisterNUICallback('startInteraction',function(data,cb)
+    local entry=SelectedEntry(data)
+    local definition=entry and Config.Interactions[entry.definition]
+    local ped=PlayerPedId()
+    if not entry or not definition or not IsCompatible(definition,ped)then ClosePicker();cb({ok=false});return end
+    local valid
+    if entry.object then
+        valid=DoesEntityExist(entry.object)and CanStartInteractionAtObject(definition,entry.object,GetEntityCoords(ped),GetEntityCoords(entry.object))
+    else
+        valid=#(GetEntityCoords(ped)-vector3(entry.x,entry.y,entry.z))<=definition.radius
+    end
+    if not valid then Audit('failed',entry);ClosePicker();cb({ok=false});return end
+    ClosePicker()
+    if entry.object then StartInteractionAtObject(entry)else StartInteractionAtCoords(entry)end
+    cb({ok=CurrentInteraction==entry})
+end)
+RegisterNUICallback('stopInteraction',function(_,cb)StopInteraction(false,true);cb({ok=true})end)
+RegisterNUICallback('setInteractionMarker',function(data,cb)
+    local entry=SelectedEntry(data)
+    if entry then SetInteractionMarker(entry.object or vector3(entry.x,entry.y,entry.z))else SetInteractionMarker()end
+    cb({ok=entry~=nil})
 end)
 
-RegisterNUICallback("stopInteraction", function(data, cb)
-	StopInteraction(false, true)
-	cb({})
-end)
-
-RegisterNUICallback("setInteractionMarker", function(data, cb)
-	if data.entity then
-		SetInteractionMarker(data.entity)
-	elseif data.x and data.y and data.z then
-		SetInteractionMarker(vector3(data.x, data.y, data.z))
-	else
-		SetInteractionMarker()
-	end
-	cb({})
-end)
-
-RegisterCommand("zata_interact", function(source, args, raw)
+RegisterCommand("zata_redminteractions_interact", function(source, args, raw)
 	StartInteraction()
 end, false)
 
@@ -673,7 +726,7 @@ Citizen.CreateThread(function()
             StopInteraction(true)
         end
 
-        SetPromptVisible(InteractPrompt, CanStartInteraction and (NearbyInteraction or CurrentInteraction ~= nil)
+        SetPromptVisible(InteractPrompt, UIReady and CanStartInteraction and (NearbyInteraction or CurrentInteraction ~= nil)
             and not PickerIsOpen)
         SetPromptVisible(StopPrompt, CanStartInteraction and CurrentInteraction ~= nil and not PickerIsOpen)
 
@@ -690,7 +743,6 @@ Citizen.CreateThread(function()
             if IsDisabledControlJustPressed(0, Config.MenuAcceptControl) then
                 SendNUIMessage({type = "startInteraction"})
                 InteractionMarker = nil
-                PickerIsOpen = false
             elseif IsDisabledControlJustPressed(0, Config.MenuCancelControl) then
                 StopInteraction(false, true)
             end
@@ -732,7 +784,9 @@ AddEventHandler("onResourceStop", function(resource)
     end
 end)
 
-RegisterCommand("zata_interactionsdebug", function()
+RegisterCommand("zata_redminteractions_debug", function()
+    RequestPermission("debug",function(allowed)
+    if not allowed then return end
     local ped = PlayerPedId()
     local reason = InputBlockReason(ped) or "none"
     print(("[zata_RedmInteractions] ped=%s dead=%s blocked=%s nearby=%s radius=%s picker=%s interaction=%s playerControl=%s")
@@ -742,11 +796,15 @@ RegisterCommand("zata_interactionsdebug", function()
     print(("[zata_RedmInteractions] interactControl=%s promptEnabled=%s feather=%s vorp=%s")
         :format(tostring(Config.InteractControl), tostring(InteractPrompt and InteractPrompt:isEnabled()),
             GetResourceState("feather-menu"), GetResourceState("vorp_menu")))
+    end)
 end, false)
 
-RegisterCommand("zata_interactionsturndebug", function()
+RegisterCommand("zata_redminteractions_turndebug", function()
+    RequestPermission("turndebug",function(allowed)
+    if not allowed then return end
     TurnDebugUntil = GetGameTimer() + 10000
     TurnDebugNext = 0
     TurnDebugTarget = nil
-    print("[zata_RedmInteractions turn] Diagnose fuer 10 Sekunden aktiv. Links/rechts halten; Tastenwerte: enabled/pressed/disabledPressed.")
+    print("[zata_RedmInteractions turn] Diagnose für 10 Sekunden aktiv. Links/rechts halten; Tastenwerte: enabled/pressed/disabledPressed.")
+    end)
 end, false)

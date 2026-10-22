@@ -43,13 +43,16 @@ ScenarioTranslations.WORLD_PLAYER_SLEEP_GROUND = "Auf dem Boden schlafen"
 
 AnimationTranslations = {}
 
-AnimationTranslations["bathing_idle_02"] = ""
-AnimationTranslations["left_arm_scrub_medium"] = ""
-AnimationTranslations["left_leg_scrub_medium"] = ""
-AnimationTranslations["right_arm_scrub_medium"] = ""
-AnimationTranslations["right_leg_scrub_medium"] = ""
+AnimationTranslations["bathing_idle_02"] = "Entspannt baden"
+AnimationTranslations["left_arm_scrub_medium"] = "Linken Arm waschen"
+AnimationTranslations["left_leg_scrub_medium"] = "Linkes Bein waschen"
+AnimationTranslations["right_arm_scrub_medium"] = "Rechten Arm waschen"
+AnimationTranslations["right_leg_scrub_medium"] = "Rechtes Bein waschen"
 
 InteractionLabelTranslations = {}
 
-InteractionLabelTranslations["left"] = ""
-InteractionLabelTranslations["right"] = ""
+InteractionLabelTranslations["left"] = "links"
+InteractionLabelTranslations["right"] = "rechts"
+
+AnimationTranslations["loop_female"] = "Intime Pose – oben"
+AnimationTranslations["loop_male"] = "Intime Pose – unten"

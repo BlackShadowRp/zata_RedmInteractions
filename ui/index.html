@@ -1,13 +1,20 @@
-<html>
-	<head>
-		<title>Interactions</title>
-		<link rel="stylesheet" href="style.css">
-		<script src="script.js"></script>
-	</head>
-	<body>
-		<div id="interaction-picker">
-			<div id="interaction-picker-title">Wähle</div>
-			<div id="interaction-picker-list"></div>
-		</div>
-	</body>
+<!doctype html>
+<html lang="de" style="background:transparent">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Interaktionen</title>
+    <style>html,body{background:transparent;margin:0}#interaction-picker[hidden]{display:none!important}</style>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <div id="stage">
+        <section id="interaction-picker" hidden aria-label="Interaktionen">
+            <header><h1 id="interaction-picker-title">Interaktionen</h1><button id="close" type="button">Schließen</button></header>
+            <div class="list-panel"><div id="interaction-picker-list" role="listbox" aria-label="Verfügbare Interaktionen" tabindex="0"></div></div>
+            <footer>↑ ↓ Wählen · Eingabe Nutzen · Escape Schließen</footer>
+        </section>
+    </div>
+</body>
 </html>

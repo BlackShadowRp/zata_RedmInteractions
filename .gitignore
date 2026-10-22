@@ -1,0 +1,3 @@
+tests/render-output/
+node_modules/
+*.log

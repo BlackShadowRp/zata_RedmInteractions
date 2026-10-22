@@ -123,3 +123,35 @@ and `Turn.rightRawKey` (0x27), avoiding game-menu repeat pulses resetting the
 acceleration ramp. Change the virtual key codes to rebind keyboard turning;
 set both to false to use only the configured game controls. Existing disabled
 control and menu/movement gates still apply; raw input creates no prompts.
+
+### Menu polling performance
+
+Feather/VORP menu exports are polled at most every 100 ms during ordinary
+frames, sharing the resulting blocking reason with the rotation gate. Menu
+events and resource stops invalidate the snapshot. Interaction entry and the
+start of a turn explicitly refresh it. NUI focus, pause, death and physical
+blocking conditions remain frame-based. A menu without focus or a usable event
+can take up to 100 ms to stop an already ongoing turn.
+
+Compare resource CPU in RedM while idle, turning, seated and opening menus;
+mocked tests verify reduced export frequency, not actual in-game CPU savings.
+
+Furniture proximity and picker searches now enumerate nearby objects once per
+search, reusing coordinates within that search. No object snapshot persists
+across searches; detection radius, compatibility checks and the 500-ms scan
+interval are unchanged. Regression coverage includes no-match scans, matches
+in later configuration entries and picker results, with enumeration/read counts.
+
+Rotation-specific eligibility checks now run only while exactly one turn key
+is held. Idle frames read only the two key states for rotation; disabled-control
+checks are deferred until a key is held. General furniture/input/death gating
+remains unchanged. Tests verify idle frames do not query rotation speed and
+held-key safety checks and smooth turning still pass.
+
+Menu CPU optimization: the BSDev Feather/VORP adapters expose
+`zata_IsMenuOpen`, returning only a boolean. The interaction resource prefers
+these exports instead of transferring entire registered menu/API tables.
+Restart feather-menu and vorp_menu before this resource to activate them.
+Missing adapters retain the original compatibility fallback, log once and
+retry after the provider stops. Adapter additions are documented in each
+provider resource UPGRADE_NOTES.md. Verify actual resmon savings in-game.

@@ -28,14 +28,19 @@ end
 
 local MenuEvents = { feather = false, vorp = false }
 local MenuWarnings = {}
-AddEventHandler("FeatherMenu:opened", function() MenuEvents.feather = true end)
-AddEventHandler("FeatherMenu:closed", function() MenuEvents.feather = false end)
-AddEventHandler("vorp_menu:openmenu", function() MenuEvents.vorp = true end)
-AddEventHandler("vorp_menu:closemenu", function() MenuEvents.vorp = false end)
+local LightweightMenus = {}
+local MenuCacheUntil = 0
+local MenuCacheReason
+AddEventHandler("FeatherMenu:opened", function() MenuEvents.feather = true; MenuCacheUntil = 0 end)
+AddEventHandler("FeatherMenu:closed", function() MenuEvents.feather = false; MenuCacheUntil = 0 end)
+AddEventHandler("vorp_menu:openmenu", function() MenuEvents.vorp = true; MenuCacheUntil = 0 end)
+AddEventHandler("vorp_menu:closemenu", function() MenuEvents.vorp = false; MenuCacheUntil = 0 end)
 AddEventHandler("onClientResourceStop", function(resource)
     if resource == "feather-menu" then MenuEvents.feather = false end
     if resource == "vorp_menu" then MenuEvents.vorp = false end
     MenuWarnings[resource] = nil
+    LightweightMenus[resource] = nil
+    MenuCacheUntil = 0
 end)
 
 local function WarnMenuFailure(resource, result)
@@ -45,7 +50,53 @@ local function WarnMenuFailure(resource, result)
         :format(resource, tostring(result)))
 end
 
-local function ExternalInputBlockReason()
+local function LightweightMenuState(resource)
+    if LightweightMenus[resource] == false then return nil end
+    local ok, open = pcall(function() return exports[resource]:zata_IsMenuOpen() end)
+    if ok and (type(open) == "boolean" or open == 0 or open == 1) then
+        LightweightMenus[resource] = true
+        return AsBoolean(open)
+    end
+    LightweightMenus[resource] = false
+    print(("[zata_RedmInteractions] %s: leichter Menue-Export fehlt; bisheriger Adapter bleibt aktiv bis zum Menue-Resource-Neustart."):format(resource))
+end
+
+local function QueryMenuBlockReason()
+    if GetResourceState("feather-menu") == "started" then
+        local lightweight = LightweightMenuState("feather-menu")
+        if lightweight then return "feather_menu" end
+        if lightweight == nil then
+            local ok, menu = pcall(function() return exports["feather-menu"]:initiate() end)
+            if ok and type(menu) == "table" then
+                if type(menu.activeMenu) == "table" then return "feather_menu" end
+            else
+                WarnMenuFailure("feather-menu", menu)
+                if MenuEvents.feather then return "feather_menu_event" end
+            end
+        end
+    end
+    if GetResourceState("vorp_menu") == "started" then
+        local lightweight = LightweightMenuState("vorp_menu")
+        if lightweight then return "vorp_menu" end
+        if lightweight == nil then
+            local ok, menus = pcall(function()
+                local api = exports["vorp_menu"]:GetMenuData()
+                return api.GetOpenedMenus()
+            end)
+            if ok and type(menus) == "table" then
+                -- Do not treat false entries/holes in Opened as active menus.
+                for _, menu in pairs(menus) do
+                    if type(menu) == "table" then return "vorp_menu" end
+                end
+            else
+                WarnMenuFailure("vorp_menu", menus)
+                if MenuEvents.vorp then return "vorp_menu_event" end
+            end
+        end
+    end
+end
+
+local function ExternalInputBlockReason(forceRefresh)
     -- Am Schachtisch übernehmen die eigenen Sitz- und Brettkamera-Prompts.
     if GetResourceState("zata_Chess") == "started" then
         local ok, blocked = pcall(function() return exports.zata_Chess:blocksInteractions() end)
@@ -53,34 +104,16 @@ local function ExternalInputBlockReason()
     end
     if AsBoolean(IsNuiFocused()) then return "nui_focus" end
     if AsBoolean(IsPauseMenuActive()) then return "pause_menu" end
-    if GetResourceState("feather-menu") == "started" then
-        local ok, menu = pcall(function() return exports["feather-menu"]:initiate() end)
-        if ok and type(menu) == "table" then
-            if type(menu.activeMenu) == "table" then return "feather_menu" end
-        else
-            WarnMenuFailure("feather-menu", menu)
-            if MenuEvents.feather then return "feather_menu_event" end
-        end
+    local now = GetGameTimer()
+    if forceRefresh or now >= MenuCacheUntil then
+        MenuCacheReason = QueryMenuBlockReason()
+        MenuCacheUntil = now + 100
     end
-    if GetResourceState("vorp_menu") == "started" then
-        local ok, menus = pcall(function()
-            local api = exports["vorp_menu"]:GetMenuData()
-            return api.GetOpenedMenus()
-        end)
-        if ok and type(menus) == "table" then
-            -- Do not treat false entries/holes in Opened as active menus.
-            for _, menu in pairs(menus) do
-                if type(menu) == "table" then return "vorp_menu" end
-            end
-        else
-            WarnMenuFailure("vorp_menu", menus)
-            if MenuEvents.vorp then return "vorp_menu_event" end
-        end
-    end
+    if MenuCacheReason then return MenuCacheReason end
     if Config.IsInputBlocked and AsBoolean(Config.IsInputBlocked()) then return "custom_block" end
 end
 
-local function InputBlockReason(ped)
+local function InputBlockReason(ped, forceRefresh)
     if IsPlayerDead(ped) then return "dead_or_invalid_ped" end
     if AsBoolean(IsPedOnMount(ped)) then return "mounted" end
     if AsBoolean(IsPedEnteringAnyTransport(ped)) then return "entering_transport" end
@@ -92,15 +125,15 @@ local function InputBlockReason(ped)
     if AsBoolean(IsPedHogtied(ped)) then return "hogtied" end
     if AsBoolean(IsPedCuffed(ped)) then return "cuffed" end
     if AsBoolean(IsPedInCombat(ped)) then return "combat" end
-    return ExternalInputBlockReason()
+    return ExternalInputBlockReason(forceRefresh)
 end
 
-local function CanUseInputs(ped)
-    return InputBlockReason(ped) == nil
+local function CanUseInputs(ped, forceRefresh)
+    return InputBlockReason(ped, forceRefresh) == nil
 end
 
-local function TurnBlockReason(ped)
-    local reason = InputBlockReason(ped)
+local function TurnBlockReason(ped, inputsChecked)
+    local reason = not inputsChecked and InputBlockReason(ped)
     if reason then return reason end
     if PickerIsOpen then return "picker_open" end
     if CurrentInteraction then return "active_interaction" end
@@ -121,12 +154,14 @@ end
 
 local function TurnKeyDown(side)
     local control = Config.Turn[side .. "Control"]
-    if not AsBoolean(IsControlEnabled(0, control)) then return false end
     local rawKey = Config.Turn[side .. "RawKey"]
+    local down
     if rawKey and type(IsRawKeyDown) == "function" then
-        return AsBoolean(IsRawKeyDown(rawKey))
+        down = AsBoolean(IsRawKeyDown(rawKey))
+    else
+        down = AsBoolean(IsControlPressed(0, control))
     end
-    return AsBoolean(IsControlPressed(0, control))
+    return down and AsBoolean(IsControlEnabled(0, control))
 end
 
 local function TraceTurning(ped)
@@ -237,7 +272,7 @@ function StartInteractionAtCoords(interaction)
 	local h = interaction.heading
 
 	local ped = PlayerPedId()
-	if not CanUseInputs(ped) then return end
+	if not CanUseInputs(ped, true) then return end
 	InteractionPed = ped
 	InteractionStartedAt = GetGameTimer()
 
@@ -419,12 +454,19 @@ function GetAvailableInteractions()
 	local playerPed = PlayerPedId()
 	local playerCoords = GetEntityCoords(playerPed)
 	local availableInteractions = {}
+    local nearbyObjects
+    local objectCoordsCache = {}
 
 	for _, interaction in ipairs(Config.Interactions) do
 		if IsCompatible(interaction, playerPed) then
 			if interaction.objects then
-				for _, object in ipairs(GetNearbyObjects(playerCoords)) do
-					local objectCoords = GetEntityCoords(object)
+				nearbyObjects = nearbyObjects or GetNearbyObjects(playerCoords)
+				for _, object in ipairs(nearbyObjects) do
+                    local objectCoords = objectCoordsCache[object]
+                    if not objectCoords then
+                        objectCoords = GetEntityCoords(object)
+                        objectCoordsCache[object] = objectCoords
+                    end
 
 					local modelName = CanStartInteractionAtObject(interaction, object, playerCoords, objectCoords)
 
@@ -448,7 +490,7 @@ function GetAvailableInteractions()
 end
 
 function StartInteraction()
-	if PickerIsOpen or not CanUseInputs(PlayerPedId()) then return end
+	if PickerIsOpen or not CanUseInputs(PlayerPedId(), true) then return end
 	local availableInteractions = GetAvailableInteractions()
 
 	if #availableInteractions > 0 then
@@ -540,12 +582,19 @@ end
 
 function IsInteractionNearby(playerPed)
 	local playerCoords = GetEntityCoords(playerPed)
+    local nearbyObjects
+    local objectCoordsCache = {}
 
 	for _, interaction in ipairs(Config.Interactions) do
 		if IsCompatible(interaction, playerPed) then
 			if interaction.objects then
-				for _, object in ipairs(GetNearbyObjects(playerCoords)) do
-					local objectCoords = GetEntityCoords(object)
+				nearbyObjects = nearbyObjects or GetNearbyObjects(playerCoords)
+				for _, object in ipairs(nearbyObjects) do
+                    local objectCoords = objectCoordsCache[object]
+                    if not objectCoords then
+                        objectCoords = GetEntityCoords(object)
+                        objectCoordsCache[object] = objectCoords
+                    end
 
 					local modelName = CanStartInteractionAtObject(interaction, object, playerCoords, objectCoords)
 
@@ -654,10 +703,11 @@ Citizen.CreateThread(function()
                 and IsControlEnabled(0, Config.InteractControl)
                 and IsControlJustPressed(0, Config.InteractControl) then
                 StartInteraction()
-            elseif not TurnBlockReason(ped) then
+            elseif Config.Turn.enabled and not CurrentInteraction then
                 local left = TurnKeyDown("left")
                 local right = TurnKeyDown("right")
-                if left ~= right then
+                if left ~= right and not TurnBlockReason(ped, true)
+                    and (turnVelocity ~= 0.0 or CanUseInputs(ped, true)) then
                     local dt = math.min(GetFrameTime(), 0.05)
                     local speed = math.max(0.0, Config.Turn.degreesPerSecond)
                     local target = left and speed or -speed

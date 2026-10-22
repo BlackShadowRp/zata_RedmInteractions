@@ -55,6 +55,34 @@ resolved held state. Regression tests simulate a held raw key with intermittent
 menu-control pulses, full-speed rotation, release, both keys and blocked input.
 In-game confirmation remains required.
 
+Performance: cache only the Feather/VORP menu blocking reason for 100 ms,
+invalidate on menu events/resource stops and refresh on interaction/turn entry.
+Reuse the frame input result for the turn gate rather than checking it twice.
+Fast death, NUI, pause and physical checks remain uncached. Regression tests
+count export calls within/across the cache interval and verify fresh turn entry
+with a newly opened menu. Confirm actual resmon/profiler savings and menu/death
+behavior on BSDev before live deployment.
+
+Furniture proximity and picker searches now enumerate nearby objects once per
+search, reusing coordinates within that search. No object snapshot persists
+across searches; detection radius, compatibility checks and the 500-ms scan
+interval are unchanged. Regression coverage includes no-match scans, matches
+in later configuration entries and picker results, with enumeration/read counts.
+
+Rotation-specific eligibility checks now run only while exactly one turn key
+is held. Idle frames read only the two key states for rotation; disabled-control
+checks are deferred until a key is held. General furniture/input/death gating
+remains unchanged. Tests verify idle frames do not query rotation speed and
+held-key safety checks and smooth turning still pass.
+
+Menu CPU optimization: the BSDev Feather/VORP adapters expose
+`zata_IsMenuOpen`, returning only a boolean. The interaction resource prefers
+these exports instead of transferring entire registered menu/API tables.
+Restart feather-menu and vorp_menu before this resource to activate them.
+Missing adapters retain the original compatibility fallback, log once and
+retry after the provider stops. Adapter additions are documented in each
+provider resource UPGRADE_NOTES.md. Verify actual resmon savings in-game.
+
 ## Mitbewegte Zeppelinbänke
 
 `StartInteractionAtObject` bietet vor der Umrechnung in Weltkoordinaten den

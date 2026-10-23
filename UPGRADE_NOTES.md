@@ -40,11 +40,11 @@ Zeppelininteraktionen sind mit `zeppelinBench` markiert und kehren nicht an eine
 
 ## NUI, Freigaben und Logging
 
-`ui/` verwendet eine zentrale 1920×1080-Designfläche, proportionale Skalierung, transparenten unsichtbaren Start, RDR Lino/Cormorant und Shared-Rahmen/-Materialien. Einzelne Listenzeilen bleiben ohne Zwischenraum. Der Auswahlrahmen scrollt nicht mit. Alle ermittelten Zeilen bleiben erreichbar; die frühere stille Beschränkung auf 50 entfällt. Beschriftungen werden als Text eingefügt, nicht als ausführbares HTML.
+`ui/` verwendet seit dem 23.10.2026 wieder die klassische kompakte, rechts zentrierte halbtransparente Liste mit lokalem Chinese Rocks und weißer Auswahlmarkierung. Der transparente unsichtbare Start sowie die neuen Freigabe- und Schließmechanismen bleiben erhalten. Einzelne Listenzeilen bleiben ohne Zwischenraum. Der Auswahlrahmen scrollt nicht mit. Alle ermittelten Zeilen bleiben erreichbar; die frühere stille Beschränkung auf 50 entfällt. Beschriftungen werden als Text eingefügt, nicht als ausführbares HTML.
 
 `client.lua` hält pro Öffnung die tatsächliche Auswahl und eine Version. `server.lua` gibt öffentliche Öffnungen sowie geschützte Diagnosen frei. Diagnose-Commands haben das vollständige Präfix `zata_redminteractions`; alte Aliase entfallen. Admin-ACE, Script-ACE, Steam64 und optionale aktuelle VORP-Charaktergruppe sind getrennte ODER-Wege.
 
-Shared-Config und neues Serverscript stehen im Manifest, `uiprompt`/`unbrokenassets` sind Pflichtabhängigkeiten. Alte lokale Schrift nicht mehr ausliefern. Das neue Manifest erfordert `refresh` vor `ensure zata_RedmInteractions`.
+Shared-Config und neues Serverscript stehen im Manifest, `uiprompt` ist Pflichtabhängigkeit. `ui/chineserocks.ttf` wieder ausliefern; die Auswahl benötigt `unbrokenassets` nicht mehr. Das neue Manifest erfordert `refresh` vor `ensure zata_RedmInteractions`.
 
 LogBridge erhält Picker-Lebenszyklus, konfigurierte gemeldete Interaktionsstarts/-fehler/-enden, Diagnosefreigaben/-ablehnungen sowie Disconnect/Stopp. Native Clientwirkungen werden nicht als serverseitig bewiesen dargestellt. Identität/Koordinaten kommen vom Server; UTF-8-Aufteilung, Audit-ID, Reportschalter, gesperrte Mentions und nicht blockierende HTTP-Fehler erhalten. Kein Item- oder Datenbanksystem hinzufügen: Diese Resource hat keine entsprechenden Definitionen oder Migrationen.
 
@@ -52,6 +52,6 @@ LogBridge erhält Picker-Lebenszyklus, konfigurierte gemeldete Interaktionsstart
 
 Vier Lua-Prüfungen unter `tests/`: Eingabesperren/Drehung/Adapter und Aufrufzahlen; Picker-Lebenszyklus mit Fokus, Auswahlvalidierung und Ladeabbruch; vollständige Featurebranch-Konfiguration und native Rückgaben; zentrale Rechte, Sessiontoken, Auditkennungen und HTTP-/Unicodegrenzen. Netzwerk, Natives und HTTP sind dabei gestubbt.
 
-`tests/ui_render.cjs` rendert 120 verlustfreie WebPs in den acht vereinbarten Auflösungen. Ausgabe lokal unter `tests/render-output/`, nie committen oder packen. Dokumentierter Assetabgleich: 24 benötigte Shared-Dateien auf beiden Servern bytegleich.
+`tests/ui_render.cjs` rendert 120 verlustfreie WebPs in den acht vereinbarten Auflösungen. Ausgabe lokal unter `tests/render-output/`, nie committen oder packen. Die Auswahl lädt ihre Schrift lokal und benötigt keine Shared-Dateien mehr.
 
 Weiter im Spiel prüfen: Fixed-size NUI an/aus, Pfeile und Maus, Fokusfreigabe, Tod während der Haltung, reale Animationsdictionaries, Schach und bewegte Zeppelinbänke, weitere Menüs sowie tatsächliche resmon-Kosten. Frühere Berichte über Drehblockaden sind ohne neue F8-/Ingame-Beobachtung keine neu bestätigte Diagnose. Vollständiger Batchnachweis: `BATCH_REPORT.md`.

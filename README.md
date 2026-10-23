@@ -8,7 +8,7 @@ Die Resource sucht passende Stühle, Bänke, Betten, Klaviere, Schlafgelegenheit
 
 Die aktuelle Konfiguration enthält 75 Interaktionseinträge, darunter 28 aus dem zusätzlichen Upstream-Branch übernommene Bett-/Schlafsackvarianten. Die gemeinsamen Modelllisten umfassen 131 Stuhl- und 36 Bankmodelle. Nicht jede Haltung ist für jedes Spielfigurenmodell geeignet.
 
-Eigene Ergänzungen erhalten deutsche Bezeichnungen, Schach- und Zeppelin-Anbindungen, sichere Eingabesperren, sanftes Drehen, Diagnosewerkzeuge und eine überarbeitete Auswahloberfläche.
+Eigene Ergänzungen erhalten deutsche Bezeichnungen, Schach- und Zeppelin-Anbindungen, sichere Eingabesperren, sanftes Drehen, Diagnosewerkzeuge und die kompakte klassische Auswahloberfläche.
 
 ## Voraussetzungen und Einstieg
 
@@ -99,7 +99,7 @@ Ingame-Abnahme für Drehung, NUI-Fokus, Fixed-size NUI, reale Animationsvariante
 
 ## Installation und Abhängigkeiten
 
-Pflicht sind `uiprompt` aus kibooks redm-uiprompt und die gemeinsame Assetresource `unbrokenassets`. Beide vor `zata_RedmInteractions` starten. VORP ist ausschließlich für den optionalen Charaktergruppenweg und ergänzende Charakterdaten im Logging nutzbar; die Grundfunktion benötigt kein VORP-Inventar.
+Pflicht ist `uiprompt` aus kibooks redm-uiprompt. Vor `zata_RedmInteractions` starten. Die Auswahl verwendet wieder ihre lokale Schrift und benötigt keine gemeinsame Assetresource. VORP ist ausschließlich für den optionalen Charaktergruppenweg und ergänzende Charakterdaten im Logging nutzbar; die Grundfunktion benötigt kein VORP-Inventar.
 
 Optional: `feather-menu`, `vorp_menu`, `zata_Chess` und `zata_Zeppelin`. Fehlende leichte Menüexports werden kompatibel abgefangen. Der Batch hat diese Abhängigkeiten weder geändert noch neu gestartet.
 
@@ -125,7 +125,7 @@ LogBridge verwendet den exakten Alias `zata_RedmInteractions`. Reportschalter tr
 
 Im Batch wurden die relevanten Upstream-Historien und lokalen Änderungen integriert, auf GitHub gesichert und per Git auf beide Server übernommen. Sicherungsstand: `backup/batch-20261022-bsdev`. Details und Prüfergebnisse stehen in `BATCH_REPORT.md`; eigene Upstream-Anpassungen in `UPGRADE_NOTES.md`.
 
-Neue Manifestdateien, gemeinsame Abhängigkeit und Serverscript erfordern ein erneutes Einlesen. Vom Betreiber nach eigener Planung ausführen:
+Die wieder in die Clientpackliste aufgenommene Schrift erfordert ein erneutes Einlesen. Vom Betreiber nach eigener Planung ausführen:
 
 ```text
 refresh
@@ -136,8 +136,8 @@ Der Batch hat diese Befehle nicht ausgeführt. Die notwendigen ACE-Blöcke wurde
 
 ## Entwicklung und Prüfung
 
-`common.lua` enthält Modell-/Szenariolisten und Figurenprüfungen, `config.lua` die Interaktionen. `client.lua` verwaltet Eingaben, Auswahl und Lebenszyklus; `server.lua` Freigaben und LogBridge. `ui/` enthält den Picker mit 1920×1080-Designfläche, Shared-Slices, RDR Lino und Cormorant. Der frühere Chinese-Rocks-Font bleibt als Quelle erhalten, wird aber nicht mehr an Clients ausgeliefert.
+`common.lua` enthält Modell-/Szenariolisten und Figurenprüfungen, `config.lua` die Interaktionen. `client.lua` verwaltet Eingaben, Auswahl und Lebenszyklus; `server.lua` Freigaben und LogBridge. `ui/` enthält wieder die kompakte, rechts zentrierte halbtransparente Liste mit Chinese Rocks und weißer Auswahlmarkierung. Unsichtbarer Start, Freigaben, Auswahlvalidierung, Mausbedienung und Schließen bleiben erhalten; lange Listen scrollen ohne Begrenzung auf 50 Einträge.
 
 Vier Lua-Prüfungen: `tests/input_gates_test.lua`, `tests/picker_lifecycle_test.lua`, `tests/config_integration_test.lua`, `tests/server_access_logging_test.lua`. Jeweils mit `lua <Datei>` aus der Resource starten. Sie verwenden Native-, Netzwerk- und HTTP-Stubs.
 
-`node tests/ui_render.cjs` prüft den Picker in acht Größen mit Playwright und Sharp. Module, Browser und gemeinsame Assets sind per `PLAYWRIGHT_MODULE`, `SHARP_MODULE`, `BROWSER_EXECUTABLE` und `UNBROKEN_ASSETS` austauschbar. Verlustfreie Bilder und Index bleiben unter `tests/render-output/`, ignoriert und außerhalb der Clientpackliste. Unter Linux gegebenenfalls benötigte Browserbibliotheken über `LD_LIBRARY_PATH` bereitstellen.
+`node tests/ui_render.cjs` prüft den Picker in acht Größen mit Playwright und Sharp. Module und Browser sind per `PLAYWRIGHT_MODULE`, `SHARP_MODULE` und `BROWSER_EXECUTABLE` austauschbar. Verlustfreie Bilder und Index bleiben unter `tests/render-output/`, ignoriert und außerhalb der Clientpackliste. Unter Linux gegebenenfalls benötigte Browserbibliotheken über `LD_LIBRARY_PATH` bereitstellen.

@@ -1,16 +1,8 @@
 'use strict';
-const picker=document.getElementById('interaction-picker'),list=document.getElementById('interaction-picker-list'),stage=document.getElementById('stage');
+const picker=document.getElementById('interaction-picker'),list=document.getElementById('interaction-picker-list');
 let currentInteractions=[],selectedIndex=0,version=0,openVersion=0,enabled=false;
-const images=[],errors=[];
-const parts=['top_left','top','top_right','left','right','bottom_left','bottom','bottom_right'];
-const paths=[...['frames/main/dark','panels/heading/gold'].flatMap(f=>parts.map(p=>`https://cfx-nui-unbrokenassets/v1/${f}/${p}.webp`)),...['wood_dark','wood_blue_dark'].map(n=>`https://cfx-nui-unbrokenassets/v1/textures/${n}.webp`),'https://cfx-nui-unbrokenassets/v2/textures/leather_dark.webp',...['left','middle','right'].map(p=>`https://cfx-nui-unbrokenassets/v2/buttons/three_slice/gold/${p}.webp`)];
 function sendMessage(name,data={}){return fetch(`https://${GetParentResourceName()}/${name}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).catch(()=>({ok:false}));}
-const warmup=Promise.race([Promise.allSettled([...paths.map(path=>new Promise((resolve,reject)=>{const img=new Image();images.push(img);img.onload=()=>img.decode().then(resolve,reject);img.onerror=()=>{errors.push(path);reject(new Error(path))};img.src=path})),...['400 31px InteractionHeading','400 22px InteractionBody','500 22px InteractionBody','600 22px InteractionBody'].map(font=>document.fonts.load(font,'ÄÖÜ äöü ß'))]),new Promise(resolve=>setTimeout(()=>resolve(null),10000))]);
-const ready=warmup.then(async result=>{const settings=await sendMessage('uiReady');enabled=settings.enabled===true;window.interactionsReady=true;window.interactionsAssetErrors=errors;window.interactionsWarm=!!result;});
-function scale(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.left=`${(innerWidth-1920*s)/2}px`;stage.style.top=`${(innerHeight-1080*s)/2}px`;stage.style.transform=`scale(${s})`;}
-window.addEventListener('resize',scale);scale();
-function frame(node,family){const f=document.createElement('div');f.className=`frame ${family}`;f.setAttribute('aria-hidden','true');for(const p of parts){const i=document.createElement('i');i.className=p;f.append(i)}node.append(f);}
-frame(picker,'main');frame(picker.querySelector('header'),'heading');
+const ready=document.fonts.load('1vw "Chinese Rocks"','ÄÖÜ äöü ß').catch(()=>[]).then(async()=>{const settings=await sendMessage('uiReady');enabled=settings.enabled===true;window.interactionsReady=true;});
 function hideInteractionPicker(){openVersion++;picker.hidden=true;currentInteractions=[];list.replaceChildren();}
 function closePicker(stop=false){hideInteractionPicker();sendMessage(stop?'stopInteraction':'closePicker',{version});}
 function setSelected(){const nodes=[...list.querySelectorAll('[role=option]')];if(!nodes.length)return;selectedIndex=(selectedIndex+nodes.length)%nodes.length;nodes.forEach((n,i)=>{n.classList.toggle('selected',i===selectedIndex);n.setAttribute('aria-selected',String(i===selectedIndex));n.tabIndex=i===selectedIndex?0:-1});const selected=nodes[selectedIndex];list.setAttribute('aria-activedescendant',selected.id);selected.scrollIntoView({block:'nearest'});sendMessage('setInteractionMarker',{selection:currentInteractions[selectedIndex]?.selection,version});}

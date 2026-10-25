@@ -50,17 +50,14 @@ function S.log(player,report,title,fields)
 end
 
 function S.allowed(player)
+    if type(player) ~= "number" then return false end
     if Config.Enabled==false or not player or player<=0 then return false end
-    local cfg=Config.AdminAccess or {}
-    if cfg.AllowAdminAce and type(cfg.AdminAce)=='string'and cfg.AdminAce~=''and IsPlayerAceAllowed(player,cfg.AdminAce)then return true end
-    if cfg.AllowScriptAce and type(cfg.ScriptAce)=='string'and cfg.ScriptAce~=''and IsPlayerAceAllowed(player,cfg.ScriptAce)then return true end
-    for _,id in ipairs(GetPlayerIdentifiers(player))do
-        local hex=id:match('^steam:(%x+)$');local value=hex and tonumber(hex,16)
-        if value then for _,known in ipairs(cfg.Steam64Whitelist or {})do if ('%d'):format(value)==tostring(known)then return true end end end
-    end
-    local user=Core and Core.getUser(player);local c=user and user.getUsedCharacter
-    if type(c)=='function'then c=c()end
-    for _,group in ipairs(cfg.VorpCharacterGroups or {})do if c and type(c.group or c.Group)=='string'and (c.group or c.Group):lower()==tostring(group):lower()then return true end end
+    if type(player) ~= "number" or player <= 0 then return false end
+    local access = Config.AdminAccess or {}
+    if access.AllowAdminAce == true and type(access.AdminAce) == "string" and access.AdminAce ~= ""
+        and IsPlayerAceAllowed(player, access.AdminAce) then return true end
+    if access.AllowScriptAce == true and type(access.ScriptAce) == "string" and access.ScriptAce ~= ""
+        and IsPlayerAceAllowed(player, access.ScriptAce) then return true end
     return false
 end
 local definitions={}

@@ -70,7 +70,7 @@ Serverseitige LogBridge-Meldungen dokumentieren die Freigabe der Diagnose. Die e
 
 Die früheren Namen `zata_interact`, `zata_interactionsdebug` und `zata_interactionsturndebug` werden nicht als Aliase registriert. Spielerfunktionen erhalten keine Adminpflicht; Diagnosefreigaben werden serverseitig geprüft. Die Befehle sind für spielende Clients gedacht, nicht für die Serverkonsole.
 
-Adminzugriff gilt alternativ über aktivierte `zata.admin`, aktivierte `zata.redminteractions`, die konfigurierte Steam64-Whitelist oder eine konfigurierte VORP-Charaktergruppe. Die Gruppenliste ist standardmäßig leer. Whitelistwerte sind Dezimalstrings, Steam-ACE-Identifier sind hexadezimal.
+Die Verwaltungsrechte folgen dem ACE-Modell im Abschnitt „ACE-Rechte seit 25.10.2026“.
 
 ## Befehle und Rechte – ACE-Beispiele
 
@@ -85,7 +85,7 @@ Nur für einen einzelnen Account geht auch:
 add_ace identifier.license:<Spieler-Lizenz-ID> zata.redminteractions allow
 ```
 
-Globale Admins können `add_ace group.admin zata.admin allow` verwenden. Platzhalter durch den tatsächlichen Identifier ersetzen. Eine VORP-Gruppe ist ein eigener Zugangsweg und keine ACE. Die produktive `server.cfg` enthält die Resourcegruppe und die vorhandene Zatarion-Zuordnung; vorbereitete Teamrollen bleiben kommentiert.
+Globale Admins können `add_ace group.admin role.admin allow` verwenden. Platzhalter durch den tatsächlichen Identifier ersetzen. Eine VORP-Gruppe ist ein eigener Zugangsweg und keine ACE. Die produktive `server.cfg` enthält die Resourcegruppe und die vorhandene Zatarion-Zuordnung; vorbereitete Teamrollen bleiben kommentiert.
 
 ## Hilfe und Grenzen
 
@@ -141,3 +141,10 @@ Der Batch hat diese Befehle nicht ausgeführt. Die notwendigen ACE-Blöcke wurde
 Vier Lua-Prüfungen: `tests/input_gates_test.lua`, `tests/picker_lifecycle_test.lua`, `tests/config_integration_test.lua`, `tests/server_access_logging_test.lua`. Jeweils mit `lua <Datei>` aus der Resource starten. Sie verwenden Native-, Netzwerk- und HTTP-Stubs.
 
 `node tests/ui_render.cjs` prüft den Picker in acht Größen mit Playwright und Sharp. Module und Browser sind per `PLAYWRIGHT_MODULE`, `SHARP_MODULE` und `BROWSER_EXECUTABLE` austauschbar. Verlustfreie Bilder und Index bleiben unter `tests/render-output/`, ignoriert und außerhalb der Clientpackliste. Unter Linux gegebenenfalls benötigte Browserbibliotheken über `LD_LIBRARY_PATH` bereitstellen.
+
+
+## ACE-Rechte seit 25.10.2026
+
+Verwaltungs- und Debugrechte werden ausschließlich über die `server.cfg` vergeben: `role.admin` oder `zata.redminteractions`. `Config.AdminAccess.AllowAdminAce` und `AllowScriptAce` stehen auf `true` und schalten die beiden ACE-Wege einzeln. Steam-Whitelists und VORP-Gruppen gewähren keine Verwaltungsrechte mehr. Normale Spieler-, Berufs- und Besitzrechte bleiben davon getrennt.
+
+Prüfung: `lua tests/admin_ace_spec.lua` im Resourceverzeichnis. Ein Ingame-Test nach bewusstem Neuladen steht aus.

@@ -1,3 +1,5 @@
+> Historischer Bericht: Seit 25.10.2026 gilt ausschließlich `role.admin` oder die kanonische Script-ACE; frühere Whitelist-/VORP-Adminfreigaben sind entfernt.
+
 # Batch – zata_RedmInteractions
 
 ## Quellen und Integration

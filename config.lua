@@ -1,12 +1,15 @@
 Config = {}
 
-Config.Enabled = true
+-- Verwaltungsrechte ausschließlich über ACE in der server.cfg zuweisen.
 Config.AdminAccess = {
-    AllowAdminAce = true, AdminAce = 'zata.admin',
-    AllowScriptAce = true, ScriptAce = 'zata.redminteractions',
-    Steam64Whitelist = {'76561198288053668'}, -- Zatarion; weitere IDs nur ausdrücklich ergänzen.
-    VorpCharacterGroups = {}, -- Zum Beispiel 'admin'; standardmäßig kein zusätzlicher Gruppenweg.
+    AllowAdminAce = true,
+    AdminAce = "role.admin",
+    AllowScriptAce = true,
+    ScriptAce = "zata.redminteractions",
 }
+
+Config.Enabled = true
+
 Config.Webhook = {
     Url = 'http://127.0.0.1:50120/api/webhooks/zata_RedmInteractions',
     Reports = {ReportPicker=true, ReportInteraction=true, ReportAdmin=true, ReportSecurity=true},

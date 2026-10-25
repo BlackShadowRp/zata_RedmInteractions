@@ -1,10 +1,10 @@
 local handlers,responses,payloads={},{},{}
 local groupEnabled=true
-Config={Enabled=true,AdminAccess={AllowAdminAce=true,AdminAce='zata.admin',AllowScriptAce=true,ScriptAce='zata.redminteractions',Steam64Whitelist={'76561198288053668'},VorpCharacterGroups={'admin'}},Webhook={Url='http://127.0.0.1:50120/api/webhooks/zata_RedmInteractions',Reports={}},Interactions={{scenarios={{name='configured_sit'}}}}}
+Config={Enabled=true,AdminAccess={AllowAdminAce=true,AdminAce='role.admin',AllowScriptAce=true,ScriptAce='zata.redminteractions',Steam64Whitelist={'76561198288053668'},VorpCharacterGroups={'admin'}},Webhook={Url='http://127.0.0.1:50120/api/webhooks/zata_RedmInteractions',Reports={}},Interactions={{scenarios={{name='configured_sit'}}}}}
 function GetResourceState()return 'started'end
 exports={vorp_core={GetCore=function()return {getUser=function(id)return {getUsedCharacter={group=id==5 and 'admin'or 'user',firstname='Änne',lastname='Jäger',charIdentifier=7}}end}end}}
 function GetPlayerIdentifiers(id)return id==3 and {'steam:11000011389a5a4'}or {}end
-function IsPlayerAceAllowed(id,ace)return id==1 and ace=='zata.admin'or id==2 and ace=='zata.redminteractions'end
+function IsPlayerAceAllowed(id,ace)return id==1 and ace=='role.admin'or id==2 and ace=='zata.redminteractions'end
 function GetPlayerName()return 'Synthetisch'end
 function GetPlayerPed()return 1 end
 function GetEntityCoords()return {x=1,y=2,z=3}end
@@ -15,7 +15,7 @@ json={encode=function(v)return v end}
 function PerformHttpRequest(url,cb,verb,payload)assert(url==Config.Webhook.Url and verb=='POST');payloads[#payloads+1]=payload;cb(204)end
 dofile('server.lua')
 local s=InteractionServer
-for _,id in ipairs({1,2,3,5})do assert(s.allowed(id))end
+for _,id in ipairs({1,2,3,5})do assert(s.allowed(id)==(id==1 or id==2))end
 assert(not s.allowed(4)and not s.allowed(0))
 local cfg=Config.AdminAccess
 cfg.AllowAdminAce=false;assert(not s.allowed(1));cfg.AllowAdminAce=true
@@ -36,4 +36,4 @@ local function units(v)local n=0;for _,c in utf8.codes(v)do n=n+(c>65535 and 2 o
 for _,payload in ipairs(payloads)do local e=payload.embeds[1];local total=units(e.title)+units(e.footer.text);assert(#payload.allowed_mentions.parse==0 and units(e.title)<=256 and #e.fields<=25);for _,f in ipairs(e.fields)do assert(units(f.name)<=256 and units(f.value)<=1024);total=total+units(f.name)+units(f.value)end;assert(total<=5500)end
 local before=#payloads;Config.Webhook.Reports.ReportInteraction=false;s.log(4,'ReportInteraction','Aus',{});assert(before==#payloads)
 PerformHttpRequest=function()error('simulierter Fehler')end;assert(pcall(s.log,4,'ReportSecurity','Fehler',{}))
-print('PASS: four independent access paths, disabled paths/resource, public picker, rejected debug, session tokens, configured audit names, UTF-16 limits, report switches and HTTP isolation.')
+print('PASS: two ACE access paths, disabled paths/resource, public picker, rejected debug, session tokens, configured audit names, UTF-16 limits, report switches and HTTP isolation.')

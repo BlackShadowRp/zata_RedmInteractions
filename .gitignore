@@ -1,3 +1,11 @@
 tests/render-output/
 node_modules/
 *.log
+
+# Lokale Laufzeitdaten und Sicherungen
+.env
+.env.*
+*.bak
+*.backup
+/_backups/
+__pycache__/
